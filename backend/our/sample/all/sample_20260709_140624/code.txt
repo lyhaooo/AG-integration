@@ -1,0 +1,65 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute the minimum processing time for each operation
+    min_durations = [
+        [min(p for _, p in candidates) for candidates in job_ops]
+        for job_ops in durations
+    ]
+
+    # Total remaining work (sum of min durations) for each job
+    remaining_work = [sum(min_durs) for min_durs in min_durations]
+
+    # Schedule: list of lists, each entry will be (machine, start_time, duration)
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+
+    # Machine ready times
+    machine_ready = [0] * n_machines
+    # Job ready times (last operation completion time)
+    job_ready = [0] * n_jobs
+    # Next operation index for each job
+    next_op = [0] * n_jobs
+
+    # Total unscheduled operations
+    remaining_ops = sum(len(job) for job in durations)
+
+    while remaining_ops > 0:
+        # Jobs that still have unscheduled operations
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # Select job: prefer fewer eligible machines (for current operation),
+        # then larger remaining work, then job_ready as tie-breaker.
+        job_idx = min(
+            ready_jobs,
+            key=lambda j: (
+                len(durations[j][next_op[j]]),          # fewer eligible machines
+                -remaining_work[j],                     # larger remaining work
+                job_ready[j]                            # earliest ready (stability)
+            )
+        )
+
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Choose machine: minimize completion time, then processing time, then machine id
+        machine_id, processing_time = min(
+            candidates,
+            key=lambda pair: (
+                max(machine_ready[pair[0]], job_ready[job_idx]) + pair[1],
+                pair[1],
+                pair[0]
+            )
+        )
+
+        start_time = max(machine_ready[machine_id], job_ready[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        end_time = start_time + processing_time
+
+        # Update machine and job ready times
+        machine_ready[machine_id] = end_time
+        job_ready[job_idx] = end_time
+
+        # Update next operation and remaining work (using min duration)
+        next_op[job_idx] += 1
+        remaining_work[job_idx] -= min_durations[job_idx][op_idx]
+        remaining_ops -= 1
+
+    return schedule

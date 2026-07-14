@@ -1,0 +1,30 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    from collections import defaultdict
+    import heapq
+
+    # Initialize the schedule and machine availability
+    schedule = [[] for _ in range(n_jobs)]
+    machine_availability = [0] * n_machines
+
+    # Create a list of operations with their job index, operation index, and candidates
+    operations = []
+    for job_idx in range(n_jobs):
+        for op_idx in range(len(durations[job_idx])):
+            candidates = durations[job_idx][op_idx]
+            for machine_id, processing_time in candidates:
+                operations.append((job_idx, op_idx, machine_id, processing_time))
+
+    # Sort operations by processing time (shortest first)
+    operations.sort(key=lambda x: x[3])
+
+    # Process each operation
+    for job_idx, op_idx, machine_id, processing_time in operations:
+        # Find the start time for the operation
+        start_time = max(machine_availability[machine_id], 
+                         sum(schedule[job_idx][i][1] for i in range(op_idx))) if op_idx > 0 else 0
+        # Update machine availability
+        machine_availability[machine_id] = start_time + processing_time
+        # Add to the schedule
+        schedule[job_idx].append((machine_id, start_time, processing_time))
+
+    return schedule

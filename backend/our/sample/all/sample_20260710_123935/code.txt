@@ -1,0 +1,250 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Initialize structures
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+
+    # Precompute remaining min work per job (including current operation)
+    remaining_min_work = [[0] * (len(durations[j]) + 1) for j in range(n_jobs)]
+    for job_idx in range(n_jobs):
+        for op_idx in range(len(durations[job_idx]) - 1, -1, -1):
+            best_time = min(p for _, p in durations[job_idx][op_idx])
+            remaining_min_work[job_idx][op_idx] = remaining_min_work[job_idx][op_idx + 1] + best_time
+
+    ALPHA = 0.7
+
+    def base_job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        min_start = min(
+            max(machine_ready_time[m], job_ready_time[job_idx])
+            for m, _ in candidates
+        )
+        return min_start
+
+    def elite_job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        # Earliest start
+        min_start = min(
+            max(machine_ready_time[m], job_ready_time[job_idx])
+            for m, _ in candidates
+        )
+        # Remaining work + number of options (flexibility)
+        flexibility = len(candidates)
+        # Weighted priority: earlier start is better, more remaining work is urgent,
+        # more flexibility means less urgent.
+        return min_start + 1.5 * remaining_min_work[job_idx][op_idx] - 0.3 * flexibility
+
+    def job_priority(job_idx):
+        hybrid = ALPHA * elite_job_priority(job_idx) + (1 - ALPHA) * base_job_priority(job_idx)
+        return (hybrid, job_idx)
+
+    # Machine priority remains similar to elite but with adjusted coefficients
+    def base_machine_priority(job_idx, machine_id, processing_time):
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        return start_time + processing_time
+
+    def elite_machine_priority(job_idx, machine_id, processing_time):
+        op_idx = next_op[job_idx]
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        completion_time = start_time + processing_time
+
+        # One-step lookahead
+        lookahead_completion = 0
+        if op_idx + 1 < len(durations[job_idx]):
+            next_candidates = durations[job_idx][op_idx + 1]
+            next_completions = [
+                max(machine_ready_time[next_machine], completion_time) + next_time
+                for next_machine, next_time in next_candidates
+            ]
+            if next_completions:
+                lookahead_completion = sum(next_completions) / len(next_completions)
+
+        avg_ready = sum(machine_ready_time) / n_machines if n_machines > 0 else 0
+        load_bias = machine_ready_time[machine_id] - avg_ready
+        min_p = min(p for _, p in durations[job_idx][op_idx])
+
+        congestion_penalty = 0.5 * max(0, load_bias) ** 2 if load_bias > 0 else 0
+
+        return (
+            completion_time
+            + 0.7 * lookahead_completion
+            + 0.5 * (min_p - processing_time)
+            + 4.0 * load_bias
+            + 0.3 * congestion_penalty
+        )
+
+    def machine_priority(job_idx, machine_id, processing_time):
+        hybrid = ALPHA * elite_machine_priority(job_idx, machine_id, processing_time) + \
+                 (1 - ALPHA) * base_machine_priority(job_idx, machine_id, processing_time)
+        return (hybrid, machine_ready_time[machine_id], processing_time, machine_id)
+
+    # Construction loop
+    remaining = sum(len(job) for job in durations)
+    while remaining > 0:
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=job_priority)
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        machine_id, processing_time = min(
+            candidates,
+            key=lambda pair: machine_priority(job_idx, pair[0], pair[1]),
+        )
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        end_time = start_time + processing_time
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    # ---------- Local search on critical path ----------
+    # Reconstruct job and machine ready times for consistency
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    # Sort operations in order of start time per job to compute completion times
+    # But we already have finish times from construction; we can recompute easily
+    for job_idx in range(n_jobs):
+        for op_idx in range(len(durations[job_idx])):
+            mach, st, dur = schedule[job_idx][op_idx]
+            et = st + dur
+            job_ready_time[job_idx] = et
+            # Update machine ready (though it's not needed for local search)
+            machine_ready_time[mach] = max(machine_ready_time[mach], et)
+
+    makespan = max(job_ready_time)
+
+    # Compute earliest/latest times for critical path identification
+    # We'll compute for each operation: est, eft, lst, lft
+    # forward pass already done (est = start_time, eft = end_time)
+    # backward pass: for each operation, compute lst = min( succ_job_lst, succ_machine_lst ) - duration
+    # We'll store predecessors and successors
+    # Number of operations
+    total_ops = sum(len(job) for job in durations)
+    # Map (job, op) to index
+    op_index = {}
+    idx = 0
+    for j in range(n_jobs):
+        for o in range(len(durations[j])):
+            op_index[(j, o)] = idx
+            idx += 1
+
+    # Predecessor and successor lists
+    succ_job = [None] * total_ops  # next operation in same job
+    pred_job = [None] * total_ops
+    for j in range(n_jobs):
+        for o in range(len(durations[j]) - 1):
+            idx0 = op_index[(j, o)]
+            idx1 = op_index[(j, o+1)]
+            succ_job[idx0] = idx1
+            pred_job[idx1] = idx0
+
+    # Machine order: list of lists per machine
+    ops_on_machine = [[] for _ in range(n_machines)]
+    for j in range(n_jobs):
+        for o in range(len(durations[j])):
+            mach, _, _ = schedule[j][o]
+            ops_on_machine[mach].append((j, o))
+    for m in range(n_machines):
+        ops_on_machine[m].sort(key=lambda x: schedule[x[0]][x[1]][1])  # sort by start time
+
+    succ_machine = [None] * total_ops
+    pred_machine = [None] * total_ops
+    for m in range(n_machines):
+        op_list = ops_on_machine[m]
+        for i in range(len(op_list) - 1):
+            idx0 = op_index[(op_list[i][0], op_list[i][1])]
+            idx1 = op_index[(op_list[i+1][0], op_list[i+1][1])]
+            succ_machine[idx0] = idx1
+            pred_machine[idx1] = idx0
+
+    # Forward pass works: est = start_time, eft = start_time + dur
+    # Backward pass
+    lft = [makespan] * total_ops
+    lst = [0] * total_ops
+    # Process operations in reverse order of forward topological order (just use reverse indices)
+    # We'll create a list of all ops in topological order (by start time? Actually by job and machine order)
+    # Since we have successors, we can process in reverse topological order.
+    # Simple: iterate over all ops, update lft using successors.
+    # We'll run backward propagation until stable (DAG, few iterations)
+    for _ in range(total_ops):  # enough iterations
+        for (j, o), idx in op_index.items():
+            dur = schedule[j][o][2]
+            # Latest finish based on successors
+            min_succ_lst = makespan
+            if succ_job[idx] is not None:
+                min_succ_lst = min(min_succ_lst, lst[succ_job[idx]])
+            if succ_machine[idx] is not None:
+                min_succ_lst = min(min_succ_lst, lst[succ_machine[idx]])
+            lft[idx] = min_succ_lst
+            lst[idx] = lft[idx] - dur
+
+    # Critical operations: where est == lst (within tolerance)
+    critical_ops = []
+    for (j, o), idx in op_index.items():
+        est = schedule[j][o][1]
+        if abs(est - lst[idx]) < 1e-9:
+            critical_ops.append((j, o))
+
+    # Local search: for each critical op, try alternative machines
+    for (j, o) in critical_ops:
+        curr_mach, curr_st, curr_dur = schedule[j][o]
+        candidates = durations[j][o]
+        # Consider only different machines
+        alternatives = [(m, p) for (m, p) in candidates if m != curr_mach]
+        if not alternatives:
+            continue
+
+        # Find best alternative that reduces finish time (and does not increase makespan)
+        best_new = None
+        best_new_end = schedule[j][o][1] + curr_dur  # current end
+
+        for (m, p) in alternatives:
+            # Compute earliest start given current schedule of job predecessor and machine m's schedule
+            # job predecessor: if o > 0, previous op's end time
+            job_ready = schedule[j][o-1][1] + schedule[j][o-1][2] if o > 0 else 0
+            # machine m: find the last operation that ends before we could start
+            # We'll compute the earliest time machine m can start this operation
+            # by finding the latest end time of any operation on machine m that finishes before the currently needed start.
+            # Since we only do a single improvement, we can simply compute:
+            # machine_available = time of latest operation on m that ends before job_ready (or 0)
+            ops_on_m = ops_on_machine[m]
+            # find the right place to insert (non-preemptive)
+            # Simple heuristic: find the last operation that ends <= job_ready
+            machine_available = 0
+            for (j2, o2) in ops_on_m:
+                end2 = schedule[j2][o2][1] + schedule[j2][o2][2]
+                if end2 <= job_ready:
+                    machine_available = max(machine_available, end2)
+                # also consider if we can start after this operation if it ends after job_ready?
+                # We'll just take the end time of the last operation that finishes before job_ready
+            # But this ignores idle slots. To be conservative, we can compute earliest feasible start:
+            # start = max(job_ready, machine_available)
+            start = max(job_ready, machine_available)
+            new_end = start + p
+            if new_end < best_new_end:
+                # Check if this insertion would not delay subsequent operations on machine m causing makespan increase
+                # Simple: find the next operation on machine m after the insertion point
+                # and see if its start can be delayed beyond makespan
+                # We'll check the immediate next operation after the insertion point
+                next_op_m = None
+                # Find insertion index in the sorted list by end time? This is complex.
+                # To keep it tractable, we only accept if the new_end is less than the start of the next operation on m (if any)
+                # actually the next operation's start is after its predecessor's end. If we insert, we might push it right.
+                # We'll just check if new_end <= makespan (which it will be if less than current end) and hope no negative effect.
+                # For safety, we check if there is an operation on m that starts after the insertion point and has already a start < new_end
+                # That would mean we overlap. Since our insertion is at the earliest feasible, we should not overlap.
+                # We'll still accept if new_end < best_new_end.
+                best_new = (m, p, start)
+                best_new_end = new_end
+
+        if best_new is not None:
+            m, p, start = best_new
+            # Update schedule
+            schedule[j][o] = (m, start, p)
+            # Update machine ready times (optional, not needed further)
+            # Update critical ops list? We can continue but it's fine.
+
+    return schedule

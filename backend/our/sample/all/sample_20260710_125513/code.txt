@@ -1,0 +1,86 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # ---------- helper data ----------
+    n_ops = [len(job) for job in durations]
+    remaining_min_work = [[0] * (n_ops[j] + 1) for j in range(n_jobs)]
+    for j in range(n_jobs):
+        for op in range(n_ops[j] - 1, -1, -1):
+            best = min(durations[j][op], key=lambda x: x[1])[1]
+            remaining_min_work[j][op] = best + remaining_min_work[j][op + 1]
+
+    ALPHA = 0.85  # kept from elite parent
+
+    # ---------- constructive scheduler ----------
+    schedule = [[None] * n_ops[j] for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(n_ops)
+
+    while remaining > 0:
+        # ----- job selection (same as elite hybrid) -----
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < n_ops[j]]
+
+        def base_job_priority(j):
+            op = next_op[j]
+            return min(max(machine_ready_time[m], job_ready_time[j])
+                       for m, _ in durations[j][op])
+
+        def elite_job_priority(j):
+            op = next_op[j]
+            min_start = min(max(machine_ready_time[m], job_ready_time[j])
+                            for m, _ in durations[j][op])
+            optimistic_completion = min_start + remaining_min_work[j][op]
+            avg_machine_load = sum(machine_ready_time[m] for m, _ in durations[j][op]) / len(durations[j][op])
+            return min_start - 0.3 * remaining_min_work[j][op] + 0.2 * avg_machine_load + 0.25 * optimistic_completion
+
+        def job_priority(j):
+            return ALPHA * elite_job_priority(j) + (1 - ALPHA) * base_job_priority(j)
+
+        job_idx = min(ready_jobs, key=job_priority)
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # ----- machine selection with one-step lookahead -----
+        def lookahead_machine_priority(candidate):
+            m, pt = candidate
+            start = max(machine_ready_time[m], job_ready_time[job_idx])
+            completion = start + pt
+
+            # one-step lookahead: estimate the earliest start of the next operation
+            if op_idx + 1 < n_ops[job_idx]:
+                next_candidates = durations[job_idx][op_idx + 1]
+                # after current op, job ready time = completion; machine m becomes free at completion
+                # For other machines, we keep their current ready times.
+                best_next_start = min(max(completion if m2 == m else machine_ready_time[m2], completion)
+                                      for m2, _ in next_candidates)
+                lookahead = best_next_start - completion  # extra idle time if >0
+            else:
+                lookahead = 0
+
+            # base terms (from elite parent's new_machine_priority)
+            machine_load = machine_ready_time[m] + pt
+            job_rem = remaining_min_work[job_idx][op_idx]
+            base_score = completion + 0.4 * machine_load + 0.3 * job_rem - 0.2 * pt
+
+            # add lookahead term (penalize high lookahead, i.e., delay for next op)
+            return base_score + 0.5 * lookahead
+
+        def base_machine_priority(candidate):
+            m, pt = candidate
+            return max(machine_ready_time[m], job_ready_time[job_idx]) + pt
+
+        def machine_priority(candidate):
+            return ALPHA * lookahead_machine_priority(candidate) + (1 - ALPHA) * base_machine_priority(candidate)
+
+        # select best (machine, processing_time)
+        machine_id, processing_time = min(candidates, key=machine_priority)
+
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        end_time = start_time + processing_time
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

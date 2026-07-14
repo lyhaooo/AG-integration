@@ -1,0 +1,137 @@
+{
+  "action": "Gen(O)",
+  "score": 13.098431569104086,
+  "is_valid": true,
+  "error_type": "",
+  "error": "",
+  "description": "Gen(O) produced a feasible solver; score=13.098432, first valid candidate. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.",
+  "prompt": "You are an expert in operations research and Python.\n\nTask:\nFlexible Job Shop Scheduling Problem (FJSP): choose a feasible machine and start time for every operation of every job. The objective is to minimize makespan while preserving job precedence and machine capacity.\n\nAction:\nGen(O)\n\nStrategy intent:\nFocus on operation sequencing. Try ideas such as shortest operation first, largest remaining work first, bottleneck-first dispatching, and tie-break rules that reduce downstream waiting.\n\nRequired strategy variant:\nVariant 2: Change job selection: choose the ready job whose current operation has the shortest best processing time. Implement this variant explicitly in code; do not return the default earliest-ready skeleton.\n\nHistorical sample lessons:\n1. score=6.378363, action=Gen(L)#2, lesson=Gen(L)#2 produced a feasible solver; score=6.378363, previous_best=7.858215, trend=improved. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n2. score=7.858215, action=Gen(E)#2, lesson=Gen(E)#2 produced a feasible solver; score=7.858215, previous_best=7.901629, trend=improved. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n3. score=7.901629, action=Gen(E)#2, lesson=Gen(E)#2 produced a feasible solver; score=7.901629, previous_best=7.995835, trend=improved. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n\n\n\nRequired Python interface:\ndef fjsp_solver(n_jobs, n_machines, durations):\n    ...\n\nInput shape:\n- durations[job_idx][op_idx] is a list of (machine_id, processing_time).\n- machine_id is 0-based.\n- Example: durations[0][0] may be [(0, 12), (3, 9)], so you must choose one\n  candidate pair before unpacking machine_id and processing_time.\n\nCorrect access pattern:\nfor candidates in durations[job_idx]:\n    machine_id, processing_time = min(candidates, key=lambda pair: pair[1])\n\nForbidden access patterns:\n- machine_id, processing_time = durations[job_idx][op_idx]\n- for op_idx, (machine_id, processing_time) in enumerate(durations[job_idx])\n- durations[job_idx][op_idx][1] as if it were a single processing time\n- Expanding every candidate machine into a separate scheduled operation.\n- Appending operations with schedule[job_idx].append(...) when op_idx order matters.\n\nSafe scheduling structure:\n- Initialize schedule = [[None] * len(durations[j]) for j in range(n_jobs)].\n- Maintain job_ready_time[j] as the end time of the last scheduled operation of job j.\n- Maintain machine_ready_time[m] as the next available time of machine m.\n- At each step, choose one ready operation per unfinished job: op_idx = next_op[j].\n- Choose exactly one (machine_id, processing_time) from durations[j][op_idx].\n- Write it to schedule[j][op_idx], never append.\n- Then increment next_op[j] by 1.\n\nMinimal safe skeleton you may adapt:\ndef fjsp_solver(n_jobs, n_machines, durations):\n    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]\n    machine_ready_time = [0] * n_machines\n    job_ready_time = [0] * n_jobs\n    next_op = [0] * n_jobs\n    remaining = sum(len(job) for job in durations)\n    while remaining > 0:\n        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]\n        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])\n        op_idx = next_op[job_idx]\n        candidates = durations[job_idx][op_idx]\n        machine_id, processing_time = min(\n            candidates,\n            key=lambda pair: (max(machine_ready_time[pair[0]], job_ready_time[job_idx]) + pair[1], pair[1], pair[0]),\n        )\n        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])\n        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)\n        end_time = start_time + processing_time\n        machine_ready_time[machine_id] = end_time\n        job_ready_time[job_idx] = end_time\n        next_op[job_idx] += 1\n        remaining -= 1\n    return schedule\n\nImportant diversity rule:\n- The skeleton above is only a correctness scaffold.\n- Do not copy the skeleton unchanged.\n- You must change at least one decision rule according to the Required strategy variant.\n- Keep the fixed-slot schedule structure, but make the priority functions meaningfully different.\n\nOutput shape:\n- Return schedule as list[list[tuple[int, int, int]]].\n- schedule[job_idx][op_idx] = (machine_id, start_time, duration).\n\nHard constraints:\n- Every operation must be scheduled exactly once.\n- Operations of the same job must follow their original order.\n- A machine can process at most one operation at a time.\n- The chosen machine and duration must match durations[job_idx][op_idx].\n- Use only Python standard library.\n\nConfigured output constraints:\nReturn only executable Python code implementing fjsp_solver(n_jobs, n_machines, durations). Use only the Python standard library and return a feasible fixed-slot schedule as list[list[tuple[int, int, int]]].\n\nReturn only executable Python code. Do not include markdown fences or explanations.",
+  "evaluation": {
+    "score": 13.098431569104086,
+    "dataset": "Dauzere",
+    "valid_instances": 18,
+    "failed_instances": [],
+    "instances": [
+      {
+        "instance": "01a",
+        "makespan": 3069,
+        "optimal": 2518,
+        "score": 21.88244638602065
+      },
+      {
+        "instance": "02a",
+        "makespan": 2438,
+        "optimal": 2231,
+        "score": 9.278350515463918
+      },
+      {
+        "instance": "03a",
+        "makespan": 2351,
+        "optimal": 2229,
+        "score": 5.47330641543293
+      },
+      {
+        "instance": "04a",
+        "makespan": 3176,
+        "optimal": 2503,
+        "score": 26.887734718337995
+      },
+      {
+        "instance": "05a",
+        "makespan": 2476,
+        "optimal": 2216,
+        "score": 11.732851985559567
+      },
+      {
+        "instance": "06a",
+        "makespan": 2328,
+        "optimal": 2203,
+        "score": 5.674080798910577
+      },
+      {
+        "instance": "07a",
+        "makespan": 2807,
+        "optimal": 2283,
+        "score": 22.952255803766974
+      },
+      {
+        "instance": "08a",
+        "makespan": 2325,
+        "optimal": 2069,
+        "score": 12.37312711454809
+      },
+      {
+        "instance": "09a",
+        "makespan": 2237,
+        "optimal": 2066,
+        "score": 8.276863504356244
+      },
+      {
+        "instance": "10a",
+        "makespan": 2851,
+        "optimal": 2291,
+        "score": 24.443474465298994
+      },
+      {
+        "instance": "11a",
+        "makespan": 2237,
+        "optimal": 2063,
+        "score": 8.434318952981096
+      },
+      {
+        "instance": "12a",
+        "makespan": 2116,
+        "optimal": 2034,
+        "score": 4.031465093411996
+      },
+      {
+        "instance": "13a",
+        "makespan": 2897,
+        "optimal": 2260,
+        "score": 28.185840707964605
+      },
+      {
+        "instance": "14a",
+        "makespan": 2349,
+        "optimal": 2167,
+        "score": 8.398707891093677
+      },
+      {
+        "instance": "15a",
+        "makespan": 2230,
+        "optimal": 2167,
+        "score": 2.9072450392247347
+      },
+      {
+        "instance": "16a",
+        "makespan": 2814,
+        "optimal": 2255,
+        "score": 24.789356984478935
+      },
+      {
+        "instance": "17a",
+        "makespan": 2261,
+        "optimal": 2141,
+        "score": 5.60485754320411
+      },
+      {
+        "instance": "18a",
+        "makespan": 2232,
+        "optimal": 2137,
+        "score": 4.4454843238184365
+      }
+    ],
+    "error_type": "",
+    "message": ""
+  },
+  "check": {
+    "ok": true,
+    "error_type": "",
+    "message": "",
+    "details": {
+      "check_instance": "Dauzere/01a.fjs"
+    }
+  },
+  "question": "",
+  "created_at": "2026-07-14 11:18:19"
+}

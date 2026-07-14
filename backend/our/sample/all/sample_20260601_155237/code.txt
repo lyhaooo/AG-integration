@@ -1,0 +1,69 @@
+def fjsp_solver(jobs, machines):
+    # Function to solve the Flexible Job Shop Scheduling Problem
+    # Implementation details are omitted for brevity
+
+    schedule = []
+    apply_sequencing_rule(schedule, jobs, machines)
+    apply_assignment_rule(schedule, jobs, machines)
+
+    return schedule
+
+def apply_sequencing_rule(schedule, jobs, machines):
+    # Collect all operations from jobs
+    operations = []
+    for job in jobs:
+        for operation in job.operations:
+            operations.append(operation)
+
+    # New scoring strategy: prioritize based on processing time and job urgency
+    operations.sort(key=lambda op: (op.processing_time / (op.job.total_remaining_time + 1), op.job.urgency), reverse=True)
+
+    # Add sorted operations to the schedule while preserving feasibility
+    for operation in operations:
+        if is_feasible_to_schedule(schedule, operation):
+            schedule.append(operation)
+
+def is_feasible_to_schedule(schedule, operation):
+    # Check if adding the operation to the schedule maintains feasibility
+    # Placeholder for feasibility checks
+    return True
+
+def apply_assignment_rule(schedule, jobs, machines):
+    # Enhanced assignment logic with improved buffer management and readiness checks
+    machine_times = {machine: 0 for machine in machines}
+
+    for operation in schedule:
+        # Find the earliest available machine for this operation
+        best_machine = None
+        best_start_time = float('inf')
+
+        for machine in machines:
+            start_time = max(machine_times[machine], get_operation_ready_time(operation, schedule))
+            if start_time < best_start_time:
+                best_start_time = start_time
+                best_machine = machine
+
+        # Assign operation to the best machine found
+        if best_machine is not None:
+            machine_times[best_machine] = best_start_time + operation.processing_time
+            # Here we could add the assignment to a more structured schedule if needed
+
+def get_operation_ready_time(operation, schedule):
+    # Calculate the earliest time the operation can start based on the existing schedule
+    ready_time = 0
+    # Placeholder logic for calculating the ready time based on previous operations
+    return ready_time
+
+class Job:
+    def __init__(self, operations, total_remaining_time, urgency):
+        self.operations = operations
+        self.total_remaining_time = total_remaining_time
+        self.urgency = urgency
+
+class Operation:
+    def __init__(self, processing_time, job):
+        self.processing_time = processing_time
+        self.job = job
+
+class Machine:
+    pass

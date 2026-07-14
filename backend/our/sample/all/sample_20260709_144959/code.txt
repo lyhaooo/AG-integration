@@ -1,0 +1,48 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute minimum processing time for each operation
+    min_per_op = [
+        [min(candidates, key=lambda pair: pair[1])[1] for candidates in job]
+        for job in durations
+    ]
+    total_remaining_min = [sum(min_per_op[j]) for j in range(n_jobs)]
+
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # Variant 19: select ready job with largest total remaining minimum processing time
+        job_idx = max(
+            ready_jobs,
+            key=lambda j: (total_remaining_min[j], j)
+        )
+
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # machine selection: earliest completion time, tie-break by processing time then machine id
+        machine_id, processing_time = min(
+            candidates,
+            key=lambda pair: (
+                max(machine_ready_time[pair[0]], job_ready_time[job_idx]) + pair[1],
+                pair[1],
+                pair[0]
+            )
+        )
+
+        start = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start, processing_time)
+
+        end = start + processing_time
+        machine_ready_time[machine_id] = end
+        job_ready_time[job_idx] = end
+        next_op[job_idx] += 1
+        total_remaining_min[job_idx] -= min_per_op[job_idx][op_idx]  # update remaining sum
+
+        remaining -= 1
+
+    return schedule

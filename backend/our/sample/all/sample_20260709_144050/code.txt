@@ -1,0 +1,52 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute minimal processing time per operation and suffix sums for remaining work
+    min_times = []          # list of lists, one per job
+    suffix_sums = []        # suffix sums of min_times
+    for job in durations:
+        job_min = [min(proc for _, proc in op) for op in job]
+        min_times.append(job_min)
+        # suffix sum: remaining work from position i onwards
+        suffix = [0] * (len(job) + 1)
+        for i in range(len(job) - 1, -1, -1):
+            suffix[i] = suffix[i + 1] + job_min[i]
+        suffix_sums.append(suffix)
+
+    # Initialize data structures
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready = [0] * n_machines
+    job_ready = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining_ops = sum(len(job) for job in durations)
+
+    while remaining_ops > 0:
+        # Get ready jobs
+        ready = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # Select job: min eligible machines, then max remaining work
+        def job_key(j):
+            op = next_op[j]
+            n_elig = len(durations[j][op])
+            rem = suffix_sums[j][op]   # total work of remaining ops (using min times)
+            return (n_elig, -rem)
+
+        chosen_job = min(ready, key=job_key)
+
+        op = next_op[chosen_job]
+        candidates = durations[chosen_job][op]
+
+        # Machine selection: earliest completion time, tie‑break by processing time then machine id
+        machine_id, proc_time = min(
+            candidates,
+            key=lambda pair: (max(machine_ready[pair[0]], job_ready[chosen_job]) + pair[1], pair[1], pair[0])
+        )
+
+        start = max(machine_ready[machine_id], job_ready[chosen_job])
+        schedule[chosen_job][op] = (machine_id, start, proc_time)
+        end = start + proc_time
+
+        machine_ready[machine_id] = end
+        job_ready[chosen_job] = end
+        next_op[chosen_job] += 1
+        remaining_ops -= 1
+
+    return schedule

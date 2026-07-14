@@ -1,0 +1,51 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute minimum processing time for each operation (for remaining work estimate)
+    min_proc = []
+    for job in durations:
+        job_mins = []
+        for candidates in job:
+            job_mins.append(min(p for _, p in candidates))
+        min_proc.append(job_mins)
+
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    machine_workload = [0] * n_machines  # total assigned processing time (load)
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        # Identify jobs that still have unscheduled operations
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # ----- Job selection: largest remaining work (sum of min processing times) -----
+        def remaining_work(j):
+            return sum(min_proc[j][next_op[j]:])
+        job_idx = max(ready_jobs, key=lambda j: remaining_work(j))
+
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # ----- Machine selection: load-aware earliest completion -----
+        # Key = (earliest_completion_time, machine_workload)
+        def machine_key(candidate):
+            m, p = candidate
+            start = max(machine_ready_time[m], job_ready_time[job_idx])
+            completion = start + p
+            return (completion, machine_workload[m])
+
+        machine_id, processing_time = min(candidates, key=machine_key)
+
+        # Schedule the operation
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        end_time = start_time + processing_time
+
+        # Update machine and job state
+        machine_ready_time[machine_id] = end_time
+        machine_workload[machine_id] += processing_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

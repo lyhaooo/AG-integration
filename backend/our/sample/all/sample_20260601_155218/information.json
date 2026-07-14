@@ -1,0 +1,7 @@
+{
+  "description": "Execution failure during evolution.",
+  "prompt": "",
+  "error": "error_type: <class 'TypeError'>, error_msg: 'int' object is not iterable, traceback: Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 303, in check_code\n    schedule = fjsp_solver(self.n_jobs, self.n_machines, self.durations)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 7, in fjsp_solver\n  File \"<string>\", line 17, in apply_sequencing_rule\nTypeError: 'int' object is not iterable\n",
+  "error_pattern": "error_type: <class 'TypeError'>, error_msg: 'int' object is not iterable, traceback: Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 303, in check_code\n    schedule = fjsp_solver(self.n_jobs, self.n_machines, self.durations)",
+  "action": "Revise"
+}

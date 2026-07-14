@@ -1,0 +1,63 @@
+def fjsp_solver(jobs, machines):
+    # Function to solve the Flexible Job Shop Scheduling Problem
+    # Implementation details are omitted for brevity
+
+    # Placeholder for the actual solution logic
+    schedule = []
+    apply_sequencing_rule(schedule, jobs, machines)
+    apply_assignment_rule(schedule, jobs, machines)
+
+    return schedule
+
+def apply_sequencing_rule(schedule, jobs, machines):
+    # Collect all operations from jobs
+    operations = []
+    for job in jobs:
+        for operation in job.operations:
+            operations.append(operation)
+
+    # New scoring strategy: prioritize based on a combination of processing time and job urgency
+    operations.sort(key=lambda op: (op.processing_time / (op.job.total_remaining_time + 1), op.job.urgency), reverse=True)
+
+    # Add sorted operations to the schedule while preserving feasibility
+    for operation in operations:
+        if is_feasible_to_schedule(schedule, operation):
+            schedule.append(operation)
+
+def is_feasible_to_schedule(schedule, operation):
+    # Check if adding the operation to the schedule maintains feasibility
+    # Placeholder for feasibility checks
+    return True
+
+def apply_assignment_rule(schedule, jobs, machines):
+    # Enhanced assignment strategy to improve makespan
+    machine_availability = {machine: 0 for machine in machines}
+    
+    for operation in schedule:
+        best_machine = None
+        earliest_completion_time = float('inf')
+
+        # Evaluate each machine for the best assignment
+        for machine in machines:
+            completion_time = machine_availability[machine] + operation.processing_time
+            if completion_time < earliest_completion_time:
+                earliest_completion_time = completion_time
+                best_machine = machine
+
+        # Assign the operation to the best machine
+        if best_machine is not None:
+            machine_availability[best_machine] = earliest_completion_time
+
+class Job:
+    def __init__(self, operations, total_remaining_time, urgency):
+        self.operations = operations
+        self.total_remaining_time = total_remaining_time
+        self.urgency = urgency
+
+class Operation:
+    def __init__(self, processing_time, job):
+        self.processing_time = processing_time
+        self.job = job
+
+class Machine:
+    pass

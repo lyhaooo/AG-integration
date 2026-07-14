@@ -1,0 +1,64 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+
+    remaining_min_work = [[0] * (len(durations[j]) + 1) for j in range(n_jobs)]
+    for job_idx in range(n_jobs):
+        for op_idx in range(len(durations[job_idx]) - 1, -1, -1):
+            best_time = min(processing_time for _, processing_time in durations[job_idx][op_idx])
+            remaining_min_work[job_idx][op_idx] = remaining_min_work[job_idx][op_idx + 1] + best_time
+
+    def current_best_time(job_idx):
+        op_idx = next_op[job_idx]
+        return min(processing_time for _, processing_time in durations[job_idx][op_idx])
+
+    def job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        return (
+            job_ready_time[job_idx]
+            + 0.4 * current_best_time(job_idx)
+            - 0.2 * remaining_min_work[job_idx][op_idx],
+            job_idx,
+        )
+
+    def machine_priority(job_idx, machine_id, processing_time):
+        op_idx = next_op[job_idx]
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        completion_time = start_time + processing_time
+        
+        lookahead_completion = 0
+        if op_idx + 1 < len(durations[job_idx]):
+            lookahead_completion = min(
+                max(machine_ready_time[next_machine], completion_time) + next_time
+                for next_machine, next_time in durations[job_idx][op_idx + 1]
+            )
+        
+        # Mutated priority weights to reduce congestion
+        return (
+            completion_time + 0.3 * lookahead_completion + 0.1 * (current_best_time(job_idx) - processing_time),  # Adjusted weights
+            processing_time,
+            machine_id,
+        )
+
+    remaining = sum(len(job) for job in durations)
+    while remaining > 0:
+        ready_jobs = [job_idx for job_idx in range(n_jobs) if next_op[job_idx] < len(durations[job_idx])]
+        job_idx = min(ready_jobs, key=job_priority)
+        op_idx = next_op[job_idx]
+        machine_id, processing_time = min(
+            durations[job_idx][op_idx],
+            key=lambda pair: machine_priority(job_idx, pair[0], pair[1]),
+        )
+        
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        end_time = start_time + processing_time
+
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

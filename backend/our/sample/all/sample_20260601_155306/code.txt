@@ -1,0 +1,87 @@
+def fjsp_solver(jobs, machines):
+    # Function to solve the Flexible Job Shop Scheduling Problem
+    # Implementation details are omitted for brevity
+
+    schedule = []
+    apply_sequencing_rule(schedule, jobs, machines)
+    apply_assignment_rule(schedule, jobs, machines)
+
+    return schedule
+
+def apply_sequencing_rule(schedule, jobs, machines):
+    # Sort operations based on a new scoring strategy
+    operations = []
+
+    # Collect all operations from jobs
+    for job in jobs:
+        for operation in job.operations:
+            operations.append(operation)
+
+    # New scoring strategy: prioritize based on a combination of processing time, job urgency, and machine availability
+    operations.sort(key=lambda op: (op.processing_time / (op.job.total_remaining_time + 1), op.job.urgency, get_machine_availability(op)), reverse=True)
+
+    # Add sorted operations to the schedule while preserving feasibility
+    for operation in operations:
+        if is_feasible_to_schedule(schedule, operation):
+            schedule.append(operation)
+
+def get_machine_availability(operation):
+    # Simplified logic to get machine availability for the operation
+    # This assumes we have access to the machine's current state
+    return sum(1 for m in machines if m.is_available(operation))
+
+def is_feasible_to_schedule(schedule, operation):
+    # Check if adding the operation to the schedule maintains feasibility
+    # Placeholder for feasibility checks
+    return True
+
+def apply_assignment_rule(schedule, jobs, machines):
+    # Function to assign operations to machines
+    # Implementation details are omitted for brevity
+    for operation in schedule:
+        assigned_machine = find_best_machine_for_operation(operation)
+        if assigned_machine is not None:
+            assigned_machine.schedule(operation)
+
+def find_best_machine_for_operation(operation):
+    # Logic to find the best machine for the operation based on current load
+    best_machine = None
+    best_load = float('inf')
+    
+    for machine in machines:
+        current_load = machine.get_current_load()
+        if current_load < best_load and machine.can_handle(operation):
+            best_load = current_load
+            best_machine = machine
+
+    return best_machine
+
+class Job:
+    def __init__(self, operations, total_remaining_time, urgency):
+        self.operations = operations
+        self.total_remaining_time = total_remaining_time
+        self.urgency = urgency
+
+class Operation:
+    def __init__(self, processing_time, job):
+        self.processing_time = processing_time
+        self.job = job
+
+class Machine:
+    def __init__(self):
+        self.current_load = 0
+
+    def is_available(self, operation):
+        # Logic to determine if the machine is available for the operation
+        pass
+
+    def get_current_load(self):
+        return self.current_load
+
+    def can_handle(self, operation):
+        # Logic to determine if the machine can handle the operation
+        pass
+
+    def schedule(self, operation):
+        # Logic to schedule the operation, updating the machine's load
+        self.current_load += operation.processing_time

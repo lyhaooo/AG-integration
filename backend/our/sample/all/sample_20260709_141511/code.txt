@@ -1,0 +1,70 @@
+import random
+
+def fjsp_solver(n_jobs, n_machines, durations):
+    best_schedule = None
+    best_makespan = float('inf')
+    num_trials = 5  # number of randomized restarts
+
+    for _ in range(num_trials):
+        # Reset state for each trial
+        schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+        machine_ready_time = [0] * n_machines
+        job_ready_time = [0] * n_jobs
+        next_op = [0] * n_jobs
+        remaining = sum(len(job) for job in durations)
+
+        # Precompute remaining minimum work
+        remaining_min_work = [[0] * (len(durations[j]) + 1) for j in range(n_jobs)]
+        for job_idx in range(n_jobs):
+            for op_idx in range(len(durations[job_idx]) - 1, -1, -1):
+                best_time = min(proc for _, proc in durations[job_idx][op_idx])
+                remaining_min_work[job_idx][op_idx] = remaining_min_work[job_idx][op_idx + 1] + best_time
+
+        # Randomized job priority function
+        def job_priority(job_idx):
+            op_idx = next_op[job_idx]
+            head = job_ready_time[job_idx]
+            current_best = min(proc for _, proc in durations[job_idx][op_idx])
+            tail = remaining_min_work[job_idx][op_idx]
+            # New weights: emphasize tail (remaining work) more than before
+            # Add small random noise to break ties and increase diversity
+            return head + 0.2 * current_best + 0.5 * tail + 1e-6 * random.random()
+
+        # Machine selection (similar to elite, but keep as is)
+        def machine_priority(job_idx, machine_id, processing_time):
+            op_idx = next_op[job_idx]
+            start = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            completion = start + processing_time
+            lookahead = 0.0
+            if op_idx + 1 < len(durations[job_idx]):
+                lookahead = min(
+                    max(machine_ready_time[m], completion) + pt
+                    for m, pt in durations[job_idx][op_idx + 1]
+                )
+            return (completion + 0.2 * lookahead, processing_time, machine_id)
+
+        # Greedy construction
+        while remaining > 0:
+            ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+            job_idx = min(ready_jobs, key=job_priority)
+            op_idx = next_op[job_idx]
+            candidates = durations[job_idx][op_idx]
+            machine_id, processing_time = min(
+                candidates,
+                key=lambda pair: machine_priority(job_idx, pair[0], pair[1])
+            )
+            start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+            end_time = start_time + processing_time
+            machine_ready_time[machine_id] = end_time
+            job_ready_time[job_idx] = end_time
+            next_op[job_idx] += 1
+            remaining -= 1
+
+        # Evaluate makespan
+        makespan = max(job_ready_time)
+        if makespan < best_makespan:
+            best_makespan = makespan
+            best_schedule = schedule
+
+    return best_schedule

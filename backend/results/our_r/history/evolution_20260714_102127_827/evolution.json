@@ -1,0 +1,13 @@
+{
+  "evolution_id": "evolution_20260714_102127_827",
+  "method": "our",
+  "created_at": "2026-07-14T10:21:27+08:00",
+  "strategy": "multi_agent_candidate_search",
+  "training_dataset": "Dauzere",
+  "training_score": 0.38160205556261495,
+  "selected_weights": [
+    1.5,
+    0.12,
+    0.0
+  ]
+}

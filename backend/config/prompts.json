@@ -1,0 +1,43 @@
+{
+  "generator": {
+    "title": "Generator 代码生成智能体",
+    "description": "对应 agent_Generator 与 prompt.get_prompt_gen_G/M/O/L/E。",
+    "instructions": {
+      "system_role": "You are an expert in operations research and Python.",
+      "task_description": "Flexible Job Shop Scheduling Problem (FJSP): choose a feasible machine and start time for every operation of every job. The objective is to minimize makespan while preserving job precedence and machine capacity.",
+      "global_strategy": "Improve the overall scheduling structure. You may change both machine assignment and operation sequencing, but keep the public solver interface and schedule format unchanged.",
+      "machine_strategy": "Focus on machine assignment. Try ideas such as earliest available machine, shortest processing time, workload balancing, and avoiding future bottleneck machines.",
+      "operation_strategy": "Focus on operation sequencing. Try ideas such as shortest operation first, largest remaining work first, bottleneck-first dispatching, and tie-break rules that reduce downstream waiting.",
+      "local_strategy": "Apply the improvement advice as the main design goal. Make a focused strategy change rather than a cosmetic rewrite.",
+      "elite_strategy": "Exploit the current elite solver as a parent. Keep the reliable fixed-slot scheduling structure, but mutate one or two priority rules to beat the elite average score. Do not rewrite from scratch.",
+      "output_constraints": "Return only executable Python code implementing fjsp_solver(n_jobs, n_machines, durations). Use only the Python standard library and return a feasible fixed-slot schedule as list[list[tuple[int, int, int]]]."
+    }
+  },
+  "reviser": {
+    "title": "Reviser 代码修订智能体",
+    "description": "对应 agent_Reviser 与 prompt.get_prompt_revise。",
+    "instructions": {
+      "system_role": "You are revising a generated FJSP solver.",
+      "code_error_goal": "Fix code-level problems only: syntax, missing fjsp_solver, wrong function signature, imports, runtime exceptions, or invalid return type.",
+      "schedule_error_goal": "Fix schedule feasibility while preserving the algorithm style: job precedence, machine overlap, eligible machines, durations, and nested-list schedule format.",
+      "performance_goal": "Improve performance without sacrificing feasibility. Make a small, explainable adjustment to machine assignment, operation sequencing, or tie-break logic.",
+      "output_constraints": "Keep exactly fjsp_solver(n_jobs, n_machines, durations), use only the Python standard library, and return executable Python code without markdown fences."
+    }
+  },
+  "questioner": {
+    "title": "Questioner 策略提问智能体",
+    "description": "对应 agent_Questioner 与 prompt.get_prompt_question。",
+    "instructions": {
+      "system_role": "You are helping design the next FJSP heuristic improvement.",
+      "output_requirements": "Return only a concise improvement memo with: 1. one likely bottleneck in the current search, 2. one concrete strategy change to try next, 3. one risk to avoid. Do not write code."
+    }
+  },
+  "describer": {
+    "title": "Describer 样本描述智能体",
+    "description": "对应 agent_Describer 与 prompt.get_prompt_describe。",
+    "instructions": {
+      "system_role": "Summarize this FJSP solver candidate for future retrieval.",
+      "output_requirements": "Return 2-4 short sentences covering the main scheduling idea, what changed, and likely risks."
+    }
+  }
+}

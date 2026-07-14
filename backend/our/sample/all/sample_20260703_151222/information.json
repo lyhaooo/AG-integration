@@ -1,0 +1,13 @@
+{
+  "action": "Questn",
+  "score": Infinity,
+  "is_valid": false,
+  "error_type": "runtime_exception",
+  "error": "Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/run.py\", line 83, in main\n    advice, prompt_text = questioner.question_code(evo_info, SM.summarize_top_samples(top_k=3))\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 467, in question_code\n    return _get_llm_response(prompt_text), prompt_text\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 188, in _get_llm_response\n    raise RuntimeError(\"LLM returned an empty response.\")\nRuntimeError: LLM returned an empty response.\n",
+  "description": "",
+  "prompt": "",
+  "evaluation": null,
+  "check": null,
+  "question": "",
+  "created_at": "2026-07-03 15:12:22"
+}

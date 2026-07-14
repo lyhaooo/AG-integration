@@ -1,0 +1,73 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    def earnbest_next_completion(machine_times, job_time, job_idx, op_idx):
+        if op_idx >= len(durations[job_idx]) - 1:
+            # no next operation
+            return 0
+        next_candidates = durations[job_idx][op_idx + 1]
+        best_next = float('inf')
+        for m, p in next_candidates:
+            start = max(machine_times[m], job_time)
+            best_next = min(best_next, start + p)
+        return best_next
+
+    while remaining > 0:
+        # select job with smallest job_ready_time (earliest ready)
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        chosen_machine = -1
+        chosen_start = 0
+        chosen_proc = 0
+        best_value = float('inf')
+
+        for machine_id, proc_time in candidates:
+            # Current completion if scheduled on this machine
+            start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            end_time = start_time + proc_time
+
+            # Simulate machine state after scheduling
+            sim_machine_times = machine_ready_time[:]
+            sim_machine_times[machine_id] = end_time
+            sim_job_time = end_time
+
+            # Lookahead: best completion of next operation (if any)
+            next_best = earnbest_next_completion(sim_machine_times, sim_job_time, job_idx, op_idx)
+
+            # Combine current completion and next operation's best completion
+            combined = end_time + next_best
+
+            # Tie-breaking: prefer shorter processing time, then machine id
+            if combined < best_value:
+                best_value = combined
+                chosen_machine = machine_id
+                chosen_start = start_time
+                chosen_proc = proc_time
+            elif combined == best_value:
+                if proc_time < chosen_proc:
+                    best_value = combined
+                    chosen_machine = machine_id
+                    chosen_start = start_time
+                    chosen_proc = proc_time
+                elif proc_time == chosen_proc and machine_id < chosen_machine:
+                    best_value = combined
+                    chosen_machine = machine_id
+                    chosen_start = start_time
+                    chosen_proc = proc_time
+
+        # Schedule the operation
+        schedule[job_idx][op_idx] = (chosen_machine, chosen_start, chosen_proc)
+        end_time = chosen_start + chosen_proc
+        machine_ready_time[chosen_machine] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

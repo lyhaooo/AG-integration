@@ -1,0 +1,7 @@
+{
+  "description": "Execution failure during evolution.",
+  "prompt": "",
+  "error": "error_type: <class 'TypeError'>, error_msg: fjsp_solver() takes 2 positional arguments but 3 were given, traceback: Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 303, in check_code\n    schedule = fjsp_solver(self.n_jobs, self.n_machines, self.durations)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: fjsp_solver() takes 2 positional arguments but 3 were given\n",
+  "error_pattern": "error_type: <class 'TypeError'>, error_msg: fjsp_solver() takes 2 positional arguments but 3 were given, traceback: Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 303, in check_code\n    schedule = fjsp_solver(self.n_jobs, s",
+  "action": "Gen(O)"
+}

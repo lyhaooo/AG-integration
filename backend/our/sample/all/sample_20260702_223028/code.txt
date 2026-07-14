@@ -1,0 +1,42 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+    
+    while remaining > 0:
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        
+        # One-step lookahead: consider the next operation's completion
+        next_op_duration = float('inf')
+        for candidate in candidates:
+            machine_id, processing_time = candidate
+            if next_op[job_idx] + 1 < len(durations[job_idx]):
+                next_candidates = durations[job_idx][next_op[job_idx] + 1]
+                next_completion_times = [
+                    max(machine_ready_time[c[0]], job_ready_time[job_idx]) + c[1] for c in next_candidates
+                ]
+                next_op_duration = min(next_op_duration, min(next_completion_times, default=float('inf')))
+            
+            # Adjust the scoring to include the next operation's potential completion
+            current_completion_time = max(machine_ready_time[machine_id], job_ready_time[job_idx]) + processing_time
+            score = (current_completion_time + next_op_duration, processing_time, machine_id)
+            
+            if 'best_score' not in locals() or score < best_score:
+                best_score = score
+                best_machine = machine_id
+                best_processing_time = processing_time
+        
+        start_time = max(machine_ready_time[best_machine], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (best_machine, start_time, best_processing_time)
+        end_time = start_time + best_processing_time
+        machine_ready_time[best_machine] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+    
+    return schedule

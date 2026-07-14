@@ -1,0 +1,56 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Initialize scheduling data structures
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        # Select the job with earliest ready time (ties broken arbitrarily)
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        best_candidate = None
+        best_cost = float('inf')
+        best_primary_key = None  # for tie-breaking: (end_time, duration, machine)
+
+        # Evaluate each candidate machine with one-step lookahead
+        for machine, proc_time in candidates:
+            start = max(machine_ready_time[machine], job_ready_time[job_idx])
+            end = start + proc_time
+
+            # One-step lookahead: consider best completion of the next operation
+            if op_idx + 1 < len(durations[job_idx]):
+                next_candidates = durations[job_idx][op_idx + 1]
+                # compute minimal completion for next operation assuming current assignment
+                best_next = min(
+                    (max(machine_ready_time[m2] if m2 != machine else end, end) + dur2
+                     for m2, dur2 in next_candidates)
+                )
+                cost = end + best_next
+            else:
+                cost = end
+
+            # Tie-breaking key: (end_time, duration, machine)
+            primary_key = (end, proc_time, machine)
+
+            # Update best if better or equal with better tie-breaker
+            if cost < best_cost or (cost == best_cost and primary_key < best_primary_key):
+                best_candidate = (machine, proc_time, start, end)
+                best_cost = cost
+                best_primary_key = primary_key
+
+        # Schedule the operation with the selected candidate
+        machine_id, proc_time, start_time, end_time = best_candidate
+        schedule[job_idx][op_idx] = (machine_id, start_time, proc_time)
+
+        # Update resource availabilities
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

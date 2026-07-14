@@ -1,0 +1,50 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute the minimum processing time for each operation (used for remaining work estimate)
+    min_processing = []
+    total_remaining = []
+    for job in durations:
+        job_min = []
+        for candidates in job:
+            min_time = min(candidates, key=lambda p: p[1])[1]
+            job_min.append(min_time)
+        min_processing.append(job_min)
+        total_remaining.append(sum(job_min))
+    
+    # Data structures
+    schedule = [[None] * len(job) for job in durations]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining_work = total_remaining[:]  # copy for update
+    remaining_ops = sum(len(job) for job in durations)
+    
+    while remaining_ops > 0:
+        # Jobs that still have unscheduled operations
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        # Select job with largest remaining work (tie-break: smaller job index)
+        job_idx = max(ready_jobs, key=lambda j: (remaining_work[j], -j))
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        
+        # Machine selection: load-aware earliest completion
+        # Key: (completion_time, machine_ready_time, processing_time)
+        machine_id, processing_time = min(
+            candidates,
+            key=lambda pair: (
+                max(machine_ready_time[pair[0]], job_ready_time[job_idx]) + pair[1],
+                machine_ready_time[pair[0]],
+                pair[1]
+            )
+        )
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        end_time = start_time + processing_time
+        
+        # Update resources
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        remaining_work[job_idx] -= min_processing[job_idx][op_idx]  # update estimate
+        next_op[job_idx] += 1
+        remaining_ops -= 1
+    
+    return schedule

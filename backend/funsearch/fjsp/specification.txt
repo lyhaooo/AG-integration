@@ -1,0 +1,67 @@
+"""FJSP heuristic operators evolved by FunSearch (MA4PGO-style evaluation)."""
+import sys
+
+sys.path.insert(0, '__REPO_ROOT__')
+
+from fjsp.fjsp_eval import FJSPEvaluator
+
+_FJSP_EVAL = FJSPEvaluator()
+
+
+class _FunsearchDecorators:
+  def evolve(self, fn):
+    return fn
+
+  def run(self, fn):
+    return fn
+
+
+funsearch = _FunsearchDecorators()
+
+
+@funsearch.run
+def evaluate(dataset: str) -> float:
+  """在指定 benchmark 上评测合并算子；返回越大越好（负 fitness）。"""
+  fitness = _FJSP_EVAL.evaluate_get_operators(get_operators)
+  if fitness is None or fitness == float('inf'):
+    return -1e9
+  return -float(fitness)
+
+
+@funsearch.evolve
+def get_operators():
+  """返回工序选择算子与机器选择算子 (select_operation, select_machine)。"""
+  def select_operation(
+      num_jobs,
+      num_job_operations,
+      job_current_operation,
+      machine_process_times,
+      machine_available_time,
+  ):
+    best_score = float('-inf')
+    chosen = None
+    for j in range(num_jobs):
+      if job_current_operation[j] >= num_job_operations[j]:
+        continue
+      op_id = job_current_operation[j]
+      eligible = machine_process_times[j][op_id]
+      remaining_ops = num_job_operations[j] - job_current_operation[j]
+      earliest_machine = min(
+          machine_available_time[m] for m, _ in eligible)
+      score = remaining_ops * 10 - earliest_machine
+      if score > best_score:
+        best_score = score
+        chosen = j
+    return chosen
+
+  def select_machine(machine_process_times, machine_available_time):
+    best_finish = float('inf')
+    chosen_machine = 0
+    for machine, process_time in machine_process_times:
+      finish = machine_available_time[machine] + process_time
+      if finish < best_finish:
+        best_finish = finish
+        chosen_machine = machine
+    return chosen_machine
+
+  return select_operation, select_machine

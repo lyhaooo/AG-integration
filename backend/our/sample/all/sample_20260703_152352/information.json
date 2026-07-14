@@ -1,0 +1,13 @@
+{
+  "action": "Gen(O)",
+  "score": Infinity,
+  "is_valid": false,
+  "error_type": "runtime_exception",
+  "error": "Traceback (most recent call last):\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/run.py\", line 65, in main\n    evo_info = _generate_evaluate_and_select(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/run.py\", line 147, in _generate_evaluate_and_select\n    code, prompt_text = generator.generate_code(gen_type, advice)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 347, in generate_code\n    return _get_llm_response(prompt_text), prompt_text\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liyihao/Desktop/常用/项目/MACoder4HA/fjsp/agent.py\", line 188, in _get_llm_response\n    raise RuntimeError(\"LLM returned an empty response.\")\nRuntimeError: LLM returned an empty response.\n",
+  "description": "",
+  "prompt": "",
+  "evaluation": null,
+  "check": null,
+  "question": "",
+  "created_at": "2026-07-03 15:23:52"
+}

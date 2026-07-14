@@ -1,0 +1,244 @@
+"""
+基于离散事件的 FJSP 调度示例：在 get_data() 返回 (n_jobs, n_machines, durations) 后可运行
+返回格式为 schedule: list[list[tuple[int, int, int]]]
+"""
+
+class Operation:
+    def __init__(self, job: "Job", op_index: int, candidates: list[tuple[int, int]]):
+        self.job = job
+        self.op_index = op_index
+        self.allowed_machines = [m for m, _ in candidates]
+        self.processing_times = {m: d for m, d in candidates}
+        self.status = "PENDING" # PENDING -> READY(前序完工) -> ASSIGNED(已进入某机器队列) -> PROCESSING(正在加工) -> DONE(完工)
+        self.start_time: int | None = None
+        self.end_time: int | None = None
+        self.assigned_machine_id: int | None = None
+
+    # 获取该工序在machine机器上的加工时间
+    def processing_time_on(self, machine: "Machine") -> int:
+        return self.processing_times[machine.id]
+
+    # 获取该工序可用的机器列表
+    def get_eligible_machines(self) -> list["Machine"]:
+        return [m for m in self.job.scheduler.machines if m.id in self.allowed_machines]
+
+
+class Job:
+    def __init__(self, job_id: int, operations: list[Operation], scheduler: "FJSPScheduler"):
+        self.id = job_id
+        self.operations = operations
+        self.scheduler = scheduler  # 无效参数
+        self.status = "ACTIVE"
+        self.due_date = job_id      # 无效参数
+
+    # 获取第一个未完成且前序工序都已经完成的工序
+    def get_current_operation(self) -> Operation | None:
+        for i, op in enumerate(self.operations):
+            if op.status == "DONE":
+                continue
+            if all(self.operations[j].status == "DONE" for j in range(i)):
+                return op
+        return None
+    
+    # 获取finished_op的下一个工序, 需要自行确保finished_op已经完成且刚刚完成
+    def get_next_operation(self, finished_op: Operation) -> Operation | None:
+        idx = self.operations.index(finished_op)
+        if idx + 1 < len(self.operations):
+            return self.operations[idx + 1]
+        return None
+
+    # 获取该工件剩余加工时间的最小值
+    @property
+    def total_remaining_time(self) -> int:
+        total = 0
+        for op in self.operations:
+            if op.status != "DONE":
+                total += min(op.processing_times.values()) if op.processing_times else 0
+        return total
+
+
+class Machine:
+    def __init__(self, mid: int):
+        self.id = mid
+        self.available_time = 0
+        self.current_task: Operation | None = None
+        self.buffer: list[Operation] = []
+
+    # 获取该机器的下一个空闲时间
+    @property
+    def next_available_time(self) -> int:
+        return self.available_time
+
+    # 判断该机器是否在current_time时刻空闲
+    def is_free(self, current_time: int) -> bool:
+        return self.current_task is None and self.available_time <= current_time
+
+
+class FJSPScheduler:
+    def __init__(self, n_jobs: int, n_machines: int, durations: list):
+        self.machines = [Machine(i) for i in range(n_machines)]
+        self.jobs: list[Job] = []
+        self.global_ready_pool: list[Operation] = []
+        self.current_time = 0
+
+        for j in range(n_jobs):
+            job = Job(j, [], self)
+            for k in range(len(durations[j])):
+                job.operations.append(Operation(job, k, durations[j][k]))
+            self.jobs.append(job)
+
+        for job in self.jobs:
+            if job.operations:
+                job.operations[0].status = "READY"
+                self.global_ready_pool.append(job.operations[0])
+
+
+    # 获取所有在current_time时刻空闲的机器
+    def get_all_idle_machines(self) -> list[Machine]:
+        return [m for m in self.machines if m.is_free(self.current_time)]
+
+    # 获取该机器的等待队列中的工序
+    def get_candidate_operations(self, machine: Machine) -> list[Operation]:
+        return [op for op in machine.buffer if machine.id in op.allowed_machines]
+
+
+    # 获取所有未分配且ready的工序
+    def get_unassigned_ready_operations(self) -> list[Operation]:
+        ready_ops = []
+        for job in self.jobs:
+            current_op = job.get_current_operation()
+            if current_op and current_op.status == "READY":
+                ready_ops.append(current_op)
+        return ready_ops
+
+
+    # 将工序分配给机器
+    def assign_op_to_machine(self, op: Operation, machine: Machine) -> None:
+        duration = op.processing_times[machine.id]
+        op.status = "PROCESSING"
+        op.assigned_machine_id = machine.id
+        op.start_time = max(self.current_time, machine.available_time)
+        op.end_time = op.start_time + duration
+        machine.available_time = op.end_time
+        machine.current_task = op
+        if op in machine.buffer:
+            machine.buffer.remove(op)
+
+    # 更新已完成的工序
+    def update_completed_tasks(self) -> None:
+        for m in self.machines:
+            if m.current_task and m.current_task.end_time is not None:
+                if m.current_task.end_time <= self.current_time:
+                    finished_op = m.current_task
+                    finished_op.status = "DONE"
+                    m.current_task = None
+                    parent_job = finished_op.job
+                    next_op = parent_job.get_next_operation(finished_op)
+                    if next_op:
+                        next_op.status = "READY"
+                        self.global_ready_pool.append(next_op)
+                    else:
+                        parent_job.status = "COMPLETED"
+
+    # 将工序添加到机器的等待队列
+    def add_to_machine_buffer(self, op: Operation, target_machine: Machine) -> None:
+        op.status = "ASSIGNED"
+        target_machine.buffer.append(op)
+        if op in self.global_ready_pool:
+            self.global_ready_pool.remove(op)
+
+    # 
+    def advance_simulation_time(self) -> bool:
+        self.update_completed_tasks()
+        if self.all_operations_done():
+            return False
+        event_times = []
+        for m in self.machines:
+            if m.current_task and m.current_task.end_time is not None:
+                et = m.current_task.end_time
+                if et > self.current_time:
+                    event_times.append(et)
+        if not event_times:
+            return False
+        self.current_time = min(event_times)
+        self.update_completed_tasks()
+        return True
+
+    # 所有工序均加工完成
+    def all_operations_done(self) -> bool:
+        return all(op.status == "DONE" for job in self.jobs for op in job.operations)
+
+    def run(self) -> list[list[tuple[int, int, int]]]:
+        max_steps = 10**7
+        steps = 0
+        while not self.all_operations_done():
+            steps += 1
+            if steps > max_steps:
+                raise RuntimeError("调度主循环超过步数上限，可能存在逻辑错误")
+
+            self.update_completed_tasks()
+
+            idle_machines = self.get_all_idle_machines()
+            for machine in idle_machines:
+                wait_queue = self.get_candidate_operations(machine)
+                if wait_queue:
+                    selected_op = apply_sequencing_rule(machine, wait_queue)
+                    self.assign_op_to_machine(selected_op, machine)
+
+            ready_ops = self.get_unassigned_ready_operations()
+            for op in ready_ops:
+                candidate_machines = op.get_eligible_machines()
+                if not candidate_machines:
+                    raise ValueError(f"工序无可行机床: job={op.job.id} op={op.op_index}")
+                target_machine = apply_assignment_rule(op, candidate_machines)
+                self.add_to_machine_buffer(op, target_machine)
+
+            if self.all_operations_done():
+                break
+
+            if not self.advance_simulation_time():
+                busy = any(m.current_task for m in self.machines)
+                if busy:
+                    raise RuntimeError("无法推进仿真时间且仍有在制任务")
+                idle2 = self.get_all_idle_machines()
+                ready2 = self.get_unassigned_ready_operations()
+                if not idle2 and not ready2 and not self.all_operations_done():
+                    raise RuntimeError("调度停滞：仍有未完工工序但无法推进")
+
+        return self._rebuild_schedule_from_ops()
+
+    def _rebuild_schedule_from_ops(self) -> list[list[tuple[int, int, int]]]:
+        schedule: list[list[tuple[int, int, int]]] = []
+        for job in self.jobs:
+            row = []
+            for op in job.operations:
+                if op.start_time is None or op.end_time is None:
+                    raise RuntimeError("存在未正确调度的工序")
+                dur = op.end_time - op.start_time
+                if op.assigned_machine_id is None:
+                    raise RuntimeError("存在未绑定机床的工序")
+                mid = op.assigned_machine_id
+                if mid not in op.processing_times or op.processing_times[mid] != dur:
+                    raise RuntimeError("调度结果与可选机/工时矩阵不一致")
+                row.append((mid, op.start_time, dur))
+            schedule.append(row)
+        return schedule
+
+
+def apply_assignment_rule(operation: Operation, machine_list: list[Machine]):
+    # 优先选择可用时间最早的机器，并在此基础上选择加工时间最短的机器
+    return min(machine_list, key=lambda m: (m.next_available_time, operation.processing_time_on(m)))
+
+
+def apply_sequencing_rule(machine: Machine, wait_queue: list[Operation]):
+    # 优先选择在等待队列中，处理时间最短的工序
+    return min(wait_queue, key=lambda op: (op.processing_time_on(machine), op.job.total_remaining_time))
+
+
+def operation_processing_time_on_machine(op: Operation, machine: Machine) -> int:
+    return op.processing_times[machine.id]
+
+
+def fjsp_solver(n_jobs: int, n_machines: int, durations: list) -> list:
+    sched = FJSPScheduler(n_jobs, n_machines, durations)
+    return sched.run()

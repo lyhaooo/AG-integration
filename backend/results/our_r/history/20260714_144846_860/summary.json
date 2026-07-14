@@ -1,0 +1,51 @@
+{
+  "run_id": "20260714_144846_860",
+  "method": "our",
+  "created_at": "2026-07-14T14:48:46+08:00",
+  "datasets": [
+    {
+      "dataset": "Barnes",
+      "instance_count": 21,
+      "valid_count": 21,
+      "avg_gap": 0.18814031001152987,
+      "avg_runtime_seconds": 0.002146789666897218
+    },
+    {
+      "dataset": "Brandimarte",
+      "instance_count": 10,
+      "valid_count": 10,
+      "avg_gap": 0.14266761011085036,
+      "avg_runtime_seconds": 0.0027017750006052667
+    },
+    {
+      "dataset": "Dauzere",
+      "instance_count": 18,
+      "valid_count": 18,
+      "avg_gap": 0.0777172173001027,
+      "avg_runtime_seconds": 0.006292481554232331
+    },
+    {
+      "dataset": "Hurink_edata",
+      "instance_count": 40,
+      "valid_count": 40,
+      "avg_gap": 0.15758043962202306,
+      "avg_runtime_seconds": 0.0026661729763873153
+    },
+    {
+      "dataset": "Hurink_rdata",
+      "instance_count": 40,
+      "valid_count": 40,
+      "avg_gap": 0.11682850257063568,
+      "avg_runtime_seconds": 0.0031811374734388663
+    },
+    {
+      "dataset": "Hurink_vdata",
+      "instance_count": 40,
+      "valid_count": 40,
+      "avg_gap": 0.039041722331554896,
+      "avg_runtime_seconds": 0.004761154124207678
+    }
+  ],
+  "overall_avg_gap": 0.11428733197468062,
+  "overall_avg_runtime_seconds": 0.003607713514487755
+}

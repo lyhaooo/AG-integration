@@ -1,0 +1,137 @@
+{
+  "action": "Seed(BalancedLookahead)",
+  "score": 13.098431569104086,
+  "is_valid": true,
+  "error_type": "",
+  "error": "",
+  "description": "Balanced job priority with one-step lookahead machine choice. Seed(BalancedLookahead) produced a feasible solver; score=13.098432, previous_best=13.068809, trend=did not improve. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.",
+  "prompt": "Balanced job priority with one-step lookahead machine choice.",
+  "evaluation": {
+    "score": 13.098431569104086,
+    "dataset": "Dauzere",
+    "valid_instances": 18,
+    "failed_instances": [],
+    "instances": [
+      {
+        "instance": "01a",
+        "makespan": 3069,
+        "optimal": 2518,
+        "score": 21.88244638602065
+      },
+      {
+        "instance": "02a",
+        "makespan": 2438,
+        "optimal": 2231,
+        "score": 9.278350515463918
+      },
+      {
+        "instance": "03a",
+        "makespan": 2351,
+        "optimal": 2229,
+        "score": 5.47330641543293
+      },
+      {
+        "instance": "04a",
+        "makespan": 3176,
+        "optimal": 2503,
+        "score": 26.887734718337995
+      },
+      {
+        "instance": "05a",
+        "makespan": 2476,
+        "optimal": 2216,
+        "score": 11.732851985559567
+      },
+      {
+        "instance": "06a",
+        "makespan": 2328,
+        "optimal": 2203,
+        "score": 5.674080798910577
+      },
+      {
+        "instance": "07a",
+        "makespan": 2807,
+        "optimal": 2283,
+        "score": 22.952255803766974
+      },
+      {
+        "instance": "08a",
+        "makespan": 2325,
+        "optimal": 2069,
+        "score": 12.37312711454809
+      },
+      {
+        "instance": "09a",
+        "makespan": 2237,
+        "optimal": 2066,
+        "score": 8.276863504356244
+      },
+      {
+        "instance": "10a",
+        "makespan": 2851,
+        "optimal": 2291,
+        "score": 24.443474465298994
+      },
+      {
+        "instance": "11a",
+        "makespan": 2237,
+        "optimal": 2063,
+        "score": 8.434318952981096
+      },
+      {
+        "instance": "12a",
+        "makespan": 2116,
+        "optimal": 2034,
+        "score": 4.031465093411996
+      },
+      {
+        "instance": "13a",
+        "makespan": 2897,
+        "optimal": 2260,
+        "score": 28.185840707964605
+      },
+      {
+        "instance": "14a",
+        "makespan": 2349,
+        "optimal": 2167,
+        "score": 8.398707891093677
+      },
+      {
+        "instance": "15a",
+        "makespan": 2230,
+        "optimal": 2167,
+        "score": 2.9072450392247347
+      },
+      {
+        "instance": "16a",
+        "makespan": 2814,
+        "optimal": 2255,
+        "score": 24.789356984478935
+      },
+      {
+        "instance": "17a",
+        "makespan": 2261,
+        "optimal": 2141,
+        "score": 5.60485754320411
+      },
+      {
+        "instance": "18a",
+        "makespan": 2232,
+        "optimal": 2137,
+        "score": 4.4454843238184365
+      }
+    ],
+    "error_type": "",
+    "message": ""
+  },
+  "check": {
+    "ok": true,
+    "error_type": "",
+    "message": "",
+    "details": {
+      "check_instance": "Dauzere/01a.fjs"
+    }
+  },
+  "question": "",
+  "created_at": "2026-07-02 22:27:10"
+}

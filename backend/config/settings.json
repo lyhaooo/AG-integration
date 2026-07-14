@@ -1,0 +1,12 @@
+{
+  "pop_size": 4,
+  "n_per_method": 2,
+  "n_iter": 10,
+  "llm_api_endpoint": "https://api.deepseek.com",
+  "llm_api_key": "sk-346415778e8240039ec4e5c238050485",
+  "llm_model": "deepseek-v4-flash",
+  "llm_use_local": false,
+  "llm_local_url": "http://127.0.0.1:8080/v1",
+  "llm_debug_mode": false,
+  "llm_max_workers": 4
+}

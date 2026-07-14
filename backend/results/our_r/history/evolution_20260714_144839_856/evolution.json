@@ -1,0 +1,9 @@
+{
+  "evolution_id": "evolution_20260714_144839_856",
+  "method": "our",
+  "created_at": "2026-07-14T14:48:39+08:00",
+  "engine": "Our multi-agent",
+  "score": 7.771721730010269,
+  "iterations": 10,
+  "candidates_per_action": 2
+}

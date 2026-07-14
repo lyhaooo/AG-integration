@@ -1,0 +1,66 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Initialize schedule structure
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    # Precompute average processing time for scaling the bottleneck penalty
+    total_pt = 0
+    total_ops = 0
+    for job in durations:
+        for op in job:
+            for _, pt in op:
+                total_pt += pt
+                total_ops += 1
+    avg_pt = total_pt / total_ops if total_ops > 0 else 1.0
+    penalty_weight = 0.1 * avg_pt  # scaling factor
+
+    # Initialize bottleneck count: number of unscheduled operations that can use each machine
+    machine_load = [0] * n_machines
+    for job in durations:
+        for op in job:
+            for m, _ in op:
+                machine_load[m] += 1
+
+    while remaining > 0:
+        # Pick the job with the smallest job_ready_time among those with remaining operations
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Choose a machine using a penalty that discourages heavily loaded machines
+        best_machine = None
+        best_start = None
+        best_score = float('inf')
+
+        for machine_id, processing_time in candidates:
+            start = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            end = start + processing_time
+            # Penalty = number of remaining operations that can be assigned to this machine
+            penalty = machine_load[machine_id]
+            score = end + penalty_weight * penalty  # include penalty in the objective
+            # Tie-break: smaller processing time, then smaller machine id
+            if (score < best_score or
+                (score == best_score and processing_time < best_proc) or
+                (score == best_score and processing_time == best_proc and machine_id < best_machine)):
+                best_score = score
+                best_machine = machine_id
+                best_start = start
+                best_proc = processing_time
+
+        # Schedule the operation
+        schedule[job_idx][op_idx] = (best_machine, best_start, best_proc)
+        end_time = best_start + best_proc
+        machine_ready_time[best_machine] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+        # Update machine load counts: this operation is now removed from the pool of unscheduled ops
+        for m, _ in candidates:
+            machine_load[m] -= 1
+
+    return schedule

@@ -1,0 +1,2 @@
+"""Sample inputs for FJSP."""
+

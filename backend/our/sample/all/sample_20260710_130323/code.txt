@@ -1,0 +1,113 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # ---------- helper data ----------
+    n_ops = [len(job) for job in durations]
+    total_ops = sum(n_ops)
+    # Precompute remaining minimum work for each job from each operation
+    remaining_min_work = [[0] * (n_ops[j] + 1) for j in range(n_jobs)]
+    for j in range(n_jobs):
+        for op in range(n_ops[j] - 1, -1, -1):
+            best = min(durations[j][op], key=lambda x: x[1])[1]
+            remaining_min_work[j][op] = best + remaining_min_work[j][op + 1]
+
+    ALPHA = 0.85
+
+    # ---------- priority functions (mutated job weights) ----------
+    def base_job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        min_start = min(
+            max(machine_ready_time[m], job_ready_time[job_idx])
+            for m, _ in candidates
+        )
+        return min_start
+
+    def elite_job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        min_start = min(
+            max(machine_ready_time[m], job_ready_time[job_idx])
+            for m, _ in candidates
+        )
+        optimistic_completion = min_start + remaining_min_work[job_idx][op_idx]
+        avg_machine_load = sum(machine_ready_time[m] for m, _ in candidates) / len(candidates)
+        # V61: increase penalty for large remaining work (more negative coefficient),
+        # reduce weight on average machine load, increase weight on optimistic completion
+        return (min_start
+                - 0.5 * remaining_min_work[job_idx][op_idx]
+                + 0.1 * avg_machine_load
+                + 0.35 * optimistic_completion)
+
+    def job_priority(job_idx):
+        hybrid = ALPHA * elite_job_priority(job_idx) + (1 - ALPHA) * base_job_priority(job_idx)
+        return (hybrid, job_idx)
+
+    # Machine scoring kept mostly stable (only slight coefficient tweak)
+    def new_machine_priority(job_idx, machine_id, processing_time):
+        op_idx = next_op[job_idx]
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        completion = start_time + processing_time
+        machine_load = machine_ready_time[machine_id] + processing_time
+        job_rem = remaining_min_work[job_idx][op_idx]
+        # slightly adjusted coefficients
+        return completion + 0.45 * machine_load + 0.25 * job_rem - 0.2 * processing_time
+
+    def base_machine_priority(job_idx, machine_id, processing_time):
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        return start_time + processing_time
+
+    def machine_priority(job_idx, machine_id, processing_time):
+        hybrid = ALPHA * new_machine_priority(job_idx, machine_id, processing_time) + \
+                 (1 - ALPHA) * base_machine_priority(job_idx, machine_id, processing_time)
+        return (hybrid, machine_ready_time[machine_id], processing_time, machine_id)
+
+    # ---------- constructive scheduler ----------
+    def build_schedule(forced_machine=None):
+        # reinitialize state
+        sched = [[None] * n_ops[j] for j in range(n_jobs)]
+        mrt = [0] * n_machines
+        jrt = [0] * n_jobs
+        nxt = [0] * n_jobs
+        rem = total_ops
+
+        # define local references to outer variables (they are mutable)
+        nonlocal machine_ready_time, job_ready_time, next_op
+        machine_ready_time = mrt
+        job_ready_time = jrt
+        next_op = nxt
+
+        while rem > 0:
+            ready_jobs = [j for j in range(n_jobs) if nxt[j] < n_ops[j]]
+            # choose job using mutated priority
+            job_idx = min(ready_jobs, key=job_priority)
+            op_idx = nxt[job_idx]
+            candidates = durations[job_idx][op_idx]
+
+            if forced_machine is not None and (job_idx, op_idx) in forced_machine:
+                forced_m_id = forced_machine[(job_idx, op_idx)]
+                selected = None
+                for m_id, p_time in candidates:
+                    if m_id == forced_m_id:
+                        selected = (m_id, p_time)
+                        break
+                if selected is None:
+                    return None
+                machine_id, processing_time = selected
+            else:
+                # machine selection using stable scoring
+                machine_id, processing_time = min(
+                    candidates, key=lambda pair: machine_priority(job_idx, pair[0], pair[1])
+                )
+
+            start_time = max(mrt[machine_id], jrt[job_idx])
+            sched[job_idx][op_idx] = (machine_id, start_time, processing_time)
+            end_time = start_time + processing_time
+            mrt[machine_id] = end_time
+            jrt[job_idx] = end_time
+            nxt[job_idx] += 1
+            rem -= 1
+
+        return sched
+
+    # Build schedule (no forced machines)
+    schedule = build_schedule()
+    return schedule

@@ -1,0 +1,41 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+    
+    while remaining > 0:
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+        
+        # Hybrid strategy: Balanced Job Priority with Lookahead
+        best_score = float('inf')
+        best_machine = None
+        best_processing_time = None
+        
+        for machine_id, processing_time in candidates:
+            start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            # Lookahead: Estimate the effect of this choice on future operations
+            future_jobs_effect = sum(
+                (max(machine_ready_time[machine_id], job_ready_time[j]) + durations[j][next_op[j]][1] if next_op[j] < len(durations[j]) else 0) 
+                for j in range(n_jobs) if next_op[j] < len(durations[j])
+            )
+            score = (start_time + processing_time) + future_jobs_effect
+            
+            if score < best_score:
+                best_score = score
+                best_machine = machine_id
+                best_processing_time = processing_time
+        
+        start_time = max(machine_ready_time[best_machine], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (best_machine, start_time, best_processing_time)
+        end_time = start_time + best_processing_time
+        machine_ready_time[best_machine] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+    
+    return schedule

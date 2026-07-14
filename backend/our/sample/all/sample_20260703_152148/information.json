@@ -1,0 +1,137 @@
+{
+  "action": "Revise",
+  "score": 585.172814945736,
+  "is_valid": true,
+  "error_type": "",
+  "error": "",
+  "description": "Revise produced a feasible solver; score=585.172815, previous_best=13.068809, trend=did not improve. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.",
+  "prompt": "You are revising a generated FJSP solver.\n\nRevision goal:\nFix schedule feasibility. Preserve the algorithm style if possible, but correct job precedence, machine overlap, eligible machine choices, processing durations, and the final nested-list schedule format.\n\nError type:\nschedule_invalid\n\nError message:\nthe start time is less than the previous end time\n\nRequired interface and output:\n- Keep exactly this public function: fjsp_solver(n_jobs, n_machines, durations)\n- Return schedule as list[list[tuple[int, int, int]]]\n- Use only Python standard library\n- Return only executable Python code, no markdown fences, no explanation\n\nImportant data shape:\n- durations[job_idx][op_idx] is a candidate list: [(machine_id, processing_time), ...]\n- Always choose one candidate pair before unpacking it.\n- Never unpack durations[job_idx] or durations[job_idx][op_idx] directly as if each operation had only one machine.\n- Initialize schedule with fixed operation slots and assign by op_idx:\n  schedule = [[None] * len(durations[j]) for j in range(n_jobs)]\n  schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)\n- Do not use schedule[job_idx].append(...) for operation results.\n- Do not schedule one row for each candidate machine; schedule exactly one row for each operation.\n\nOriginal code:\n```python\ndef fjsp_solver(n_jobs, n_machines, durations):\n    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]\n    current_time = [0] * n_machines\n\n    for job_idx in range(n_jobs):\n        for op_idx in range(len(durations[job_idx])):\n            machine_id, processing_time = durations[job_idx][op_idx][0]  # Choose the first candidate\n            start_time = max(current_time[machine_id], sum(schedule[job_idx][i][1] if schedule[job_idx][i] else 0 for i in range(op_idx)))\n            schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)\n            current_time[machine_id] = start_time + processing_time\n\n    return schedule\n```",
+  "evaluation": {
+    "score": 585.172814945736,
+    "dataset": "Dauzere",
+    "valid_instances": 18,
+    "failed_instances": [],
+    "instances": [
+      {
+        "instance": "01a",
+        "makespan": 10258,
+        "optimal": 2518,
+        "score": 307.3868149324861
+      },
+      {
+        "instance": "02a",
+        "makespan": 9896,
+        "optimal": 2231,
+        "score": 343.56790676826535
+      },
+      {
+        "instance": "03a",
+        "makespan": 10688,
+        "optimal": 2229,
+        "score": 379.4975325257963
+      },
+      {
+        "instance": "04a",
+        "makespan": 10236,
+        "optimal": 2503,
+        "score": 308.9492608869357
+      },
+      {
+        "instance": "05a",
+        "makespan": 9874,
+        "optimal": 2216,
+        "score": 345.57761732851986
+      },
+      {
+        "instance": "06a",
+        "makespan": 10683,
+        "optimal": 2203,
+        "score": 384.9296413980935
+      },
+      {
+        "instance": "07a",
+        "makespan": 14742,
+        "optimal": 2283,
+        "score": 545.7293035479631
+      },
+      {
+        "instance": "08a",
+        "makespan": 14593,
+        "optimal": 2069,
+        "score": 605.3165780570324
+      },
+      {
+        "instance": "09a",
+        "makespan": 15606,
+        "optimal": 2066,
+        "score": 655.3727008712488
+      },
+      {
+        "instance": "10a",
+        "makespan": 14778,
+        "optimal": 2291,
+        "score": 545.0458315146224
+      },
+      {
+        "instance": "11a",
+        "makespan": 14626,
+        "optimal": 2063,
+        "score": 608.9675230247213
+      },
+      {
+        "instance": "12a",
+        "makespan": 15632,
+        "optimal": 2034,
+        "score": 668.534906588004
+      },
+      {
+        "instance": "13a",
+        "makespan": 18800,
+        "optimal": 2260,
+        "score": 731.858407079646
+      },
+      {
+        "instance": "14a",
+        "makespan": 19739,
+        "optimal": 2167,
+        "score": 810.8906322104291
+      },
+      {
+        "instance": "15a",
+        "makespan": 20850,
+        "optimal": 2167,
+        "score": 862.159667743424
+      },
+      {
+        "instance": "16a",
+        "makespan": 18814,
+        "optimal": 2255,
+        "score": 734.3237250554323
+      },
+      {
+        "instance": "17a",
+        "makespan": 19694,
+        "optimal": 2141,
+        "score": 819.8505371321811
+      },
+      {
+        "instance": "18a",
+        "makespan": 20839,
+        "optimal": 2137,
+        "score": 875.1520823584464
+      }
+    ],
+    "error_type": "",
+    "message": ""
+  },
+  "check": {
+    "ok": true,
+    "error_type": "",
+    "message": "",
+    "details": {
+      "check_instance": "Dauzere/01a.fjs"
+    }
+  },
+  "question": "",
+  "created_at": "2026-07-03 15:21:48"
+}

@@ -1,0 +1,108 @@
+import random
+import bisect
+
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute remaining minimum work for critical path awareness
+    remaining_min_work = [[0] * (len(durations[j]) + 1) for j in range(n_jobs)]
+    for job_idx in range(n_jobs):
+        for op_idx in range(len(durations[job_idx]) - 1, -1, -1):
+            best_time = min(p for _, p in durations[job_idx][op_idx])
+            remaining_min_work[job_idx][op_idx] = remaining_min_work[job_idx][op_idx + 1] + best_time
+
+    # Schedule structure
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    # Machine busy intervals (list of (start, end) sorted)
+    machine_intervals = [[] for _ in range(n_machines)]
+    # machine_ready_time = end of last interval on each machine (for load heuristic)
+    machine_ready_time = [0] * n_machines
+
+    def current_best_time(job_idx):
+        op_idx = next_op[job_idx]
+        return min(p for _, p in durations[job_idx][op_idx])
+
+    def earliest_start(machine_id, job_ready, proc_time):
+        """Find earliest start time >= job_ready on machine given current intervals."""
+        intervals = machine_intervals[machine_id]
+        start = job_ready
+        for s, e in intervals:
+            if start >= e:
+                continue
+            if start + proc_time <= s:
+                break
+            start = e
+        return start
+
+    def job_priority(job_idx):
+        op_idx = next_op[job_idx]
+        ready = job_ready_time[job_idx]
+        cur = current_best_time(job_idx)
+        rem = remaining_min_work[job_idx][op_idx]
+        # Change: increase weight of remaining work (more priority for jobs with more future work)
+        return (ready + 0.4 * cur - 0.3 * rem, job_idx)
+
+    def deterministic_machine_score(job_idx, machine_id, proc_time):
+        op_idx = next_op[job_idx]
+        start = earliest_start(machine_id, job_ready_time[job_idx], proc_time)
+        completion = start + proc_time
+
+        # Lookahead: best completion of next operation on any machine
+        lookahead = 0
+        if op_idx + 1 < len(durations[job_idx]):
+            next_candidates = durations[job_idx][op_idx + 1]
+            best_next = min(
+                earliest_start(m, completion, pt) + pt
+                for m, pt in next_candidates
+            )
+            lookahead = best_next
+
+        # Incorporate machine load: prefer machines with lower ready time (less busy)
+        load_penalty = 0.05 * machine_ready_time[machine_id]
+        return (completion + 0.2 * lookahead + 0.1 * (current_best_time(job_idx) - proc_time) + load_penalty,
+                proc_time, machine_id)
+
+    remaining = sum(len(job) for job in durations)
+    while remaining > 0:
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=job_priority)
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Diversification: with 10% probability, choose machine biased toward under-utilized machines
+        if random.random() < 0.1:
+            # Weighted by inverse of machine_ready_time (add 1 to avoid division by zero)
+            weights = [1.0 / (machine_ready_time[m] + 1.0) for m, _ in candidates]
+            total = sum(weights)
+            r = random.random() * total
+            cumulative = 0.0
+            chosen = candidates[0]
+            for (m, pt), w in zip(candidates, weights):
+                cumulative += w
+                if r <= cumulative:
+                    chosen = (m, pt)
+                    break
+            machine_id, processing_time = chosen
+        else:
+            # Deterministic selection using modified machine scoring
+            machine_id, processing_time = min(candidates, key=lambda pair: deterministic_machine_score(job_idx, pair[0], pair[1]))
+
+        # Compute start time using gap insertion
+        start_time = earliest_start(machine_id, job_ready_time[job_idx], processing_time)
+        end_time = start_time + processing_time
+
+        # Insert interval into machine's list, maintaining sorted order
+        intervals = machine_intervals[machine_id]
+        bisect.insort(intervals, (start_time, end_time))
+
+        # Update machine ready time to the end of the last interval
+        # (Since intervals are sorted, the last element has the largest end)
+        machine_ready_time[machine_id] = intervals[-1][1]
+
+        # Record schedule
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

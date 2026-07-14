@@ -1,0 +1,137 @@
+{
+  "action": "Gen(E)#1",
+  "score": 9.820190487570398,
+  "is_valid": true,
+  "error_type": "",
+  "error": "",
+  "description": "Gen(E)#1 produced a feasible solver; score=9.820190, previous_best=9.318925, trend=did not improve. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.",
+  "prompt": "You are an expert in operations research and Python.\n\nTask:\nFlexible Job Shop Scheduling Problem (FJSP): choose a feasible machine and start time for every operation of every job. The objective is to minimize makespan while preserving job precedence and machine capacity.\n\nAction:\nGen(E)\n\nStrategy intent:\nExploit the current elite solver as a parent. Keep the reliable fixed-slot scheduling structure, but mutate one or two priority rules to beat the elite average score. Do not rewrite from scratch.\nExtra advice:\n**Improvement Memo**\n\n1. **Bottleneck**: Repeated use of `Gen(E)` yields diminishing returns—score has worsened from 9.318925 to 9.731159. The operator likely over-exploits similar solution regions, causing stagnation or drift away from the best-known region.\n\n2. **Strategy Change**: Introduce a **hybrid local search** step after `Gen(E)`, e.g., a critical‑path-based machine reassignment or a small tabu search on the current best solution. This diversifies the search and re‑expands the frontier without relying solely on mutation.\n\n3. **Risk to Avoid**: Do not sacrifice feasibility—any local search must preserve job precedence and machine capacity constraints. Avoid excessive randomization that could break feasibility or lead to many invalid instances.\n\nRequired strategy variant:\nVariant 34: Mutate the elite machine scoring weights or tie-breakers to reduce bottleneck machine congestion. Implement this variant explicitly in code; do not return the default earliest-ready skeleton.\n\nHistorical sample lessons:\n1. score=9.318925, action=Gen(E)#1, lesson=Gen(E)#1 produced a feasible solver; score=9.318925, previous_best=9.408369, trend=improved. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n2. score=9.380515, action=Gen(E)#2, lesson=Gen(E)#2 produced a feasible solver; score=9.380515, previous_best=9.318925, trend=did not improve. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n3. score=9.400169, action=Gen(E)#2, lesson=Gen(E)#2 produced a feasible solver; score=9.400169, previous_best=9.318925, trend=did not improve. Evaluation covered 18 valid instances with 0 failed instances. Store this candidate as a reusable heuristic reference.\n\nCurrent elite parent code:\n```python\ndef fjsp_solver(n_jobs, n_machines, durations):\n    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]\n    machine_ready_time = [0] * n_machines\n    job_ready_time = [0] * n_jobs\n    next_op = [0] * n_jobs\n\n    # Precompute min remaining work for each job from each operation onward\n    remaining_min_work = [[0] * (len(durations[j]) + 1) for j in range(n_jobs)]\n    for job_idx in range(n_jobs):\n        for op_idx in range(len(durations[job_idx]) - 1, -1, -1):\n            best_time = min(processing_time for _, processing_time in durations[job_idx][op_idx])\n            remaining_min_work[job_idx][op_idx] = remaining_min_work[job_idx][op_idx + 1] + best_time\n\n    def job_priority(job_idx):\n        op_idx = next_op[job_idx]\n        candidates = durations[job_idx][op_idx]\n        # Earliest possible start time considering machine availability\n        min_start = min(\n            max(machine_ready_time[m], job_ready_time[job_idx])\n            for m, _ in candidates\n        )\n        # Average load of eligible machines (busyness measure)\n        avg_machine_load = sum(machine_ready_time[m] for m, _ in candidates) / len(candidates)\n        # Priority: earlier start is better, jobs with larger remaining work are more urgent,\n        # and jobs whose eligible machines are heavily loaded are postponed (with increased weight)\n        return (\n            min_start\n            - 0.2 * remaining_min_work[job_idx][op_idx]\n            + 0.2 * avg_machine_load,\n            job_idx,\n        )\n\n    def machine_priority(job_idx, machine_id, processing_time):\n        op_idx = next_op[job_idx]\n        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])\n        completion_time = start_time + processing_time\n\n        lookahead_completion = 0\n        if op_idx + 1 < len(durations[job_idx]):\n            lookahead_completion = min(\n                max(machine_ready_time[next_machine], completion_time) + next_time\n                for next_machine, next_time in durations[job_idx][op_idx + 1]\n            )\n\n        # Load‑balancing bias: heavily penalize machines with high ready time compared to average\n        avg_ready = sum(machine_ready_time) / n_machines if n_machines > 0 else 0\n        load_bias = 0.2 * (machine_ready_time[machine_id] - avg_ready)\n\n        # Keep lookahead and processing time spread, but with increased weights\n        min_p = min(p for _, p in durations[job_idx][op_idx])\n        return (\n            completion_time\n            + 0.3 * lookahead_completion\n            + 0.2 * (min_p - processing_time)\n            + load_bias,\n            processing_time,\n            machine_id,\n        )\n\n    remaining = sum(len(job) for job in durations)\n    while remaining > 0:\n        ready_jobs = [job_idx for job_idx in range(n_jobs) if next_op[job_idx] < len(durations[job_idx])]\n        job_idx = min(ready_jobs, key=job_priority)\n        op_idx = next_op[job_idx]\n\n        # Choose machine using the modified machine priority\n        machine_id, processing_time = min(\n            durations[job_idx][op_idx],\n            key=lambda pair: machine_priority(job_idx, pair[0], pair[1]),\n        )\n\n        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])\n        end_time = start_time + processing_time\n\n        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)\n        machine_ready_time[machine_id] = end_time\n        job_ready_time[job_idx] = end_time\n        next_op[job_idx] += 1\n        remaining -= 1\n\n    return schedule\n```\n\nElite diagnostics:\nElite score=9.318925; worst instance gaps:\n - 07a: score=24.27%, makespan=2837, optimal=2283\n - 10a: score=20.73%, makespan=2766, optimal=2291\n - 16a: score=17.03%, makespan=2639, optimal=2255\n - 13a: score=16.11%, makespan=2624, optimal=2260\n - 01a: score=16.04%, makespan=2922, optimal=2518\n - 04a: score=12.62%, makespan=2819, optimal=2503\n\nRecent mistakes to avoid:\n- Gen(O)#2: schedule_index_error - list index out of range\n- Gen(O)#2: schedule_index_error - list index out of range\n- Gen(E)#1: schedule_index_error - list index out of range\n- Gen(E)#1: runtime_error - cannot access free variable 'job_priority' where it is not associated with a value in enclosing scope\n\nElite improvement rule:\n- Preserve the parent solver's valid schedule representation and helper precomputations unless your change needs them adjusted.\n- Make a targeted mutation to priority weights, tie-breakers, or one-step lookahead.\n- The result must be different from the elite code in a way that can plausibly improve the worst listed instances.\n\nRequired Python interface:\ndef fjsp_solver(n_jobs, n_machines, durations):\n    ...\n\nInput shape:\n- durations[job_idx][op_idx] is a list of (machine_id, processing_time).\n- machine_id is 0-based.\n- Example: durations[0][0] may be [(0, 12), (3, 9)], so you must choose one\n  candidate pair before unpacking machine_id and processing_time.\n\nCorrect access pattern:\nfor candidates in durations[job_idx]:\n    machine_id, processing_time = min(candidates, key=lambda pair: pair[1])\n\nForbidden access patterns:\n- machine_id, processing_time = durations[job_idx][op_idx]\n- for op_idx, (machine_id, processing_time) in enumerate(durations[job_idx])\n- durations[job_idx][op_idx][1] as if it were a single processing time\n- Expanding every candidate machine into a separate scheduled operation.\n- Appending operations with schedule[job_idx].append(...) when op_idx order matters.\n\nSafe scheduling structure:\n- Initialize schedule = [[None] * len(durations[j]) for j in range(n_jobs)].\n- Maintain job_ready_time[j] as the end time of the last scheduled operation of job j.\n- Maintain machine_ready_time[m] as the next available time of machine m.\n- At each step, choose one ready operation per unfinished job: op_idx = next_op[j].\n- Choose exactly one (machine_id, processing_time) from durations[j][op_idx].\n- Write it to schedule[j][op_idx], never append.\n- Then increment next_op[j] by 1.\n\nMinimal safe skeleton you may adapt:\ndef fjsp_solver(n_jobs, n_machines, durations):\n    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]\n    machine_ready_time = [0] * n_machines\n    job_ready_time = [0] * n_jobs\n    next_op = [0] * n_jobs\n    remaining = sum(len(job) for job in durations)\n    while remaining > 0:\n        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]\n        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])\n        op_idx = next_op[job_idx]\n        candidates = durations[job_idx][op_idx]\n        machine_id, processing_time = min(\n            candidates,\n            key=lambda pair: (max(machine_ready_time[pair[0]], job_ready_time[job_idx]) + pair[1], pair[1], pair[0]),\n        )\n        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])\n        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)\n        end_time = start_time + processing_time\n        machine_ready_time[machine_id] = end_time\n        job_ready_time[job_idx] = end_time\n        next_op[job_idx] += 1\n        remaining -= 1\n    return schedule\n\nImportant diversity rule:\n- The skeleton above is only a correctness scaffold.\n- Do not copy the skeleton unchanged.\n- You must change at least one decision rule according to the Required strategy variant.\n- Keep the fixed-slot schedule structure, but make the priority functions meaningfully different.\n\nOutput shape:\n- Return schedule as list[list[tuple[int, int, int]]].\n- schedule[job_idx][op_idx] = (machine_id, start_time, duration).\n\nHard constraints:\n- Every operation must be scheduled exactly once.\n- Operations of the same job must follow their original order.\n- A machine can process at most one operation at a time.\n- The chosen machine and duration must match durations[job_idx][op_idx].\n- Use only Python standard library.\n\nReturn only executable Python code. Do not include markdown fences or explanations.",
+  "evaluation": {
+    "score": 9.820190487570398,
+    "dataset": "Dauzere",
+    "valid_instances": 18,
+    "failed_instances": [],
+    "instances": [
+      {
+        "instance": "01a",
+        "makespan": 2938,
+        "optimal": 2518,
+        "score": 16.679904686258936
+      },
+      {
+        "instance": "02a",
+        "makespan": 2498,
+        "optimal": 2231,
+        "score": 11.967727476467951
+      },
+      {
+        "instance": "03a",
+        "makespan": 2295,
+        "optimal": 2229,
+        "score": 2.9609690444145356
+      },
+      {
+        "instance": "04a",
+        "makespan": 2821,
+        "optimal": 2503,
+        "score": 12.704754294846184
+      },
+      {
+        "instance": "05a",
+        "makespan": 2392,
+        "optimal": 2216,
+        "score": 7.9422382671480145
+      },
+      {
+        "instance": "06a",
+        "makespan": 2283,
+        "optimal": 2203,
+        "score": 3.631411711302769
+      },
+      {
+        "instance": "07a",
+        "makespan": 2797,
+        "optimal": 2283,
+        "score": 22.514235654840125
+      },
+      {
+        "instance": "08a",
+        "makespan": 2313,
+        "optimal": 2069,
+        "score": 11.793136781053649
+      },
+      {
+        "instance": "09a",
+        "makespan": 2134,
+        "optimal": 2066,
+        "score": 3.291384317521781
+      },
+      {
+        "instance": "10a",
+        "makespan": 2810,
+        "optimal": 2291,
+        "score": 22.65386294194675
+      },
+      {
+        "instance": "11a",
+        "makespan": 2195,
+        "optimal": 2063,
+        "score": 6.398448860882211
+      },
+      {
+        "instance": "12a",
+        "makespan": 2100,
+        "optimal": 2034,
+        "score": 3.2448377581120944
+      },
+      {
+        "instance": "13a",
+        "makespan": 2670,
+        "optimal": 2260,
+        "score": 18.141592920353983
+      },
+      {
+        "instance": "14a",
+        "makespan": 2267,
+        "optimal": 2167,
+        "score": 4.614674665436087
+      },
+      {
+        "instance": "15a",
+        "makespan": 2210,
+        "optimal": 2167,
+        "score": 1.9843101061375175
+      },
+      {
+        "instance": "16a",
+        "makespan": 2677,
+        "optimal": 2255,
+        "score": 18.713968957871398
+      },
+      {
+        "instance": "17a",
+        "makespan": 2232,
+        "optimal": 2141,
+        "score": 4.25035030359645
+      },
+      {
+        "instance": "18a",
+        "makespan": 2207,
+        "optimal": 2137,
+        "score": 3.275620028076743
+      }
+    ],
+    "error_type": "",
+    "message": ""
+  },
+  "check": {
+    "ok": true,
+    "error_type": "",
+    "message": "",
+    "details": {
+      "check_instance": "Dauzere/01a.fjs"
+    }
+  },
+  "question": "",
+  "created_at": "2026-07-09 14:27:35"
+}
