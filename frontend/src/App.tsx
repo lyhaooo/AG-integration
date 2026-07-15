@@ -29,9 +29,9 @@ export default function App() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>MA4PGO</h1>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>基于多智能体协同演化的调度算子自动生成算法</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-            基于多智能体协同演化的调度算子自动生成算法
+           
           </p>
         </div>
         <nav style={{ display: "flex", gap: 4 }}>

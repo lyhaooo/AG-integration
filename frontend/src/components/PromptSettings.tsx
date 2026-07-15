@@ -53,7 +53,7 @@ export default function PromptSettings() {
 
   return (
     <div className="card">
-      <h3 className="card-title">Our 智能体提示词</h3>
+      <h3 className="card-title">智能体提示词</h3>
       <p className="task-subtitle">Checker 与 Evaluator 使用确定性程序校验，不调用 LLM，因此不包含提示词。</p>
       <div className="tabs prompt-tabs">
         {AGENTS.map((agent) => (

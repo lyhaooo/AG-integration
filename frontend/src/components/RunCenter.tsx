@@ -15,7 +15,7 @@ import MethodFitnessChart from "./MethodFitnessChart";
 const METHODS: { id: MethodName; title: string }[] = [
   { id: "eoh", title: "EoH" },
   { id: "funsearch", title: "FunSearch" },
-  { id: "our", title: "Our" },
+  { id: "our", title: "基于多智能体协同演化的调度算子自动生成算法" },
 ];
 
 const RESULT_FILES = ["compare.csv", "eoh_r.zip", "fun_r.zip", "our_r.zip"];
@@ -118,9 +118,9 @@ export default function RunCenter() {
       </div>
 
       <div className="card">
-        <h3 className="card-title">Our 当前生成代码</h3>
-        <p className="task-subtitle">EoH 与 FunSearch 按要求不展示生成代码；此处仅展示 Our。</p>
-        <pre className="code-block">{ourCode || "运行 Our 后将在此展示本次生成的最终算子"}</pre>
+        <h3 className="card-title">当前生成代码</h3>
+        <p className="task-subtitle"></p>
+        <pre className="code-block">{ourCode || "运行后将在此展示本次生成的最终算子"}</pre>
       </div>
 
       <div className="card">
