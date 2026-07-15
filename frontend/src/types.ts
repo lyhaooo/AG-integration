@@ -131,10 +131,17 @@ export interface MethodStatus {
   evolution_iteration: number;
   total_evolution_iterations: number;
   best_fitness: number | null;
+  evolution_history: MethodHistoryPoint[];
   generated_ready: boolean;
   started_at: string | null;
   finished_at: string | null;
   summary: RunSummary | null;
+}
+
+export interface MethodHistoryPoint {
+  iteration: number;
+  best_fitness: number | null;
+  timestamp: string;
 }
 
 export interface MethodsOverview {

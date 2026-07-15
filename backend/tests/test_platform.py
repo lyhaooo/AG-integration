@@ -3,10 +3,12 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fjsp_platform.algorithms import load_algorithm, render_our_code
 from fjsp_platform.datasets import DATASETS, load_dataset
 from fjsp_platform.results import comparison_payload, write_run
+from fjsp_platform.runner import ExperimentManager
 from fjsp_platform.solver import solve
 
 
@@ -40,6 +42,26 @@ class PlatformTests(unittest.TestCase):
             payload = comparison_payload(root)
             self.assertEqual(payload["methods"]["eoh"]["overall_avg_gap"], 0.2)
             self.assertTrue((root / "compare.csv").is_file())
+
+    def test_evolution_status_collects_chart_history(self):
+        def fake_engine(settings, data_root, work_root, progress, stop_event, mock=False):
+            progress(1, 2, 0.42, "first")
+            progress(1, 2, 0.38, "first improved")
+            progress(2, 2, 0.31, "second")
+            return "def fjsp_solver(instance):\n    return []\n", {"engine": "fake"}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manager = ExperimentManager(root / "Data", root / "results")
+            with patch("fjsp_platform.runner.run_eoh_engine", fake_engine):
+                manager.start_evolution("eoh")
+                manager._threads["eoh"].join(timeout=2)
+
+            status = manager.statuses()["eoh"]
+            self.assertEqual(status["status"], "completed")
+            self.assertEqual([point["iteration"] for point in status["evolution_history"]], [1, 2])
+            self.assertEqual(status["evolution_history"][0]["best_fitness"], 0.38)
+            self.assertEqual(status["best_fitness"], 0.31)
 
 
 if __name__ == "__main__":

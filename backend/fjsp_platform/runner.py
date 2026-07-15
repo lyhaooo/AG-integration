@@ -24,7 +24,7 @@ def empty_status(method: str) -> dict:
         "progress_percent": 0.0, "current_dataset": "", "current_instance": 0,
         "total_instances": 0, "completed_instances": 0,
         "evolution_iteration": 0, "total_evolution_iterations": 0,
-        "best_fitness": None,
+        "best_fitness": None, "evolution_history": [],
         "generated_ready": False, "started_at": None, "finished_at": None, "summary": None,
     }
 
@@ -117,11 +117,23 @@ class ExperimentManager:
             engines = {"eoh": run_eoh_engine, "funsearch": run_funsearch_engine, "our": run_our_engine}
 
             def report(current: int, total: int, best: float | None, message: str) -> None:
-                self._update(
-                    method, evolution_iteration=current, total_evolution_iterations=total,
-                    best_fitness=best, progress_percent=round(current / max(total, 1) * 100, 2),
-                    message=message,
-                )
+                point = {
+                    "iteration": current,
+                    "best_fitness": best,
+                    "timestamp": self._now(),
+                }
+                with self._lock:
+                    history = list(self._statuses[method]["evolution_history"])
+                    if history and history[-1]["iteration"] == current:
+                        history[-1] = point
+                    else:
+                        history.append(point)
+                    self._statuses[method].update(
+                        evolution_iteration=current, total_evolution_iterations=total,
+                        best_fitness=best, evolution_history=history,
+                        progress_percent=round(current / max(total, 1) * 100, 2),
+                        message=message,
+                    )
 
             with tempfile.TemporaryDirectory(prefix=f"fjsp-{method}-") as temp_dir:
                 code, metadata = engines[method](

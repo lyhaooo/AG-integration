@@ -1,0 +1,42 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Initialize data structures
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    machine_load = [0] * n_machines       # total processing time assigned to each machine
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        # Choose the job with the earliest ready time
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Select machine by minimizing (completion_time + current_machine_load)
+        best_machine, best_proc = None, None
+        best_key = None
+        for machine_id, proc_time in candidates:
+            start = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            completion = start + proc_time
+            key = (completion + machine_load[machine_id], proc_time, machine_id)
+            if best_key is None or key < best_key:
+                best_key = key
+                best_machine = machine_id
+                best_proc = proc_time
+
+        # Schedule the operation
+        start_time = max(machine_ready_time[best_machine], job_ready_time[job_idx])
+        schedule[job_idx][op_idx] = (best_machine, start_time, best_proc)
+
+        # Update times and loads
+        end_time = start_time + best_proc
+        machine_ready_time[best_machine] = end_time
+        machine_load[best_machine] += best_proc
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

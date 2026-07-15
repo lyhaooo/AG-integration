@@ -10,6 +10,7 @@ import {
   stopMethod,
 } from "../api";
 import { ProgressBar, StatusHeader } from "./TaskCommon";
+import MethodFitnessChart from "./MethodFitnessChart";
 
 const METHODS: { id: MethodName; title: string }[] = [
   { id: "eoh", title: "EoH" },
@@ -70,6 +71,7 @@ export default function RunCenter() {
         {METHODS.map(({ id, title }) => {
           const status = overview?.methods[id];
           const running = status?.status === "running";
+          const history = status?.evolution_history ?? [];
           return (
             <div className="card method-card" key={id}>
               <div className="task-card-top">
@@ -92,6 +94,15 @@ export default function RunCenter() {
               </p>
               {status?.action === "evolution" && status.best_fitness != null && (
                 <p className="metric-line">当前最优 Fitness：<strong>{status.best_fitness.toFixed(6)}</strong></p>
+              )}
+              {(status?.action === "evolution" || history.length > 0) && (
+                <div className="method-chart-wrap">
+                  <div className="method-chart-title">
+                    <h4 className="section-label">迭代收敛曲线</h4>
+                    <span>{history.length} 个数据点</span>
+                  </div>
+                  <MethodFitnessChart history={history} />
+                </div>
               )}
               {messages[id] && <p className="action-msg">{messages[id]}</p>}
               {status?.error && <p className="error-line">{status.error}</p>}

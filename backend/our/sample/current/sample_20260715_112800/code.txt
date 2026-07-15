@@ -1,0 +1,56 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute for each job the total minimum processing time (lower bound)
+    job_min_total = []
+    for job in durations:
+        total = 0
+        for candidates in job:
+            total += min(pt for _, pt in candidates)
+        job_min_total.append(total)
+
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready = [0] * n_machines
+    job_ready = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining_ops = sum(len(job) for job in durations)
+    # remaining work for each job (sum of min times of unscheduled operations)
+    work_remaining = job_min_total[:]
+
+    while remaining_ops > 0:
+        # Jobs that still have operations to schedule
+        ready = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # Select job: fewest eligible machines for its current operation,
+        # then largest remaining work, then job index as tie-breaker
+        def job_key(j):
+            op_idx = next_op[j]
+            num_machines = len(durations[j][op_idx])
+            return (num_machines, -work_remaining[j], j)
+
+        chosen_job = min(ready, key=job_key)
+
+        op_idx = next_op[chosen_job]
+        candidates = durations[chosen_job][op_idx]
+
+        # Choose machine: earliest finish time
+        def machine_key(pair):
+            m, pt = pair
+            start = max(machine_ready[m], job_ready[chosen_job])
+            return (start + pt, pt, m)
+
+        machine_id, proc_time = min(candidates, key=machine_key)
+
+        start = max(machine_ready[machine_id], job_ready[chosen_job])
+        end = start + proc_time
+        schedule[chosen_job][op_idx] = (machine_id, start, proc_time)
+
+        # Update resource states
+        machine_ready[machine_id] = end
+        job_ready[chosen_job] = end
+        next_op[chosen_job] += 1
+        remaining_ops -= 1
+
+        # Update remaining work (subtract the minimum processing time of the operation)
+        min_pt = min(pt for _, pt in candidates)
+        work_remaining[chosen_job] -= min_pt
+
+    return schedule
