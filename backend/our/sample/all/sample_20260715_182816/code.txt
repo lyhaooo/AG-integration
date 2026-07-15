@@ -1,0 +1,50 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute operation flexibility (number of alternative machines) and machine workload
+    op_flexibility = [[len(candidates) for candidates in job] for job in durations]
+    machine_workload = [0] * n_machines
+    total_processing = 0
+    num_ops = 0
+    for job in durations:
+        for candidates in job:
+            for m, p in candidates:
+                machine_workload[m] += p
+                total_processing += p
+                num_ops += 1
+    max_workload = max(machine_workload) if n_machines > 0 else 1
+    avg_pt = total_processing / max(num_ops, 1)
+    
+    # Bottleneck penalty weight
+    w = 0.5  # tunable; higher = more emphasis on avoiding overloaded machines
+
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready = [0] * n_machines
+    job_ready = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        # Select the job whose next operation is most constrained (fewest alternatives)
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        # Primary key: flexibility (smaller = more constrained); secondary: job_ready time
+        job_idx = min(ready_jobs, key=lambda j: (op_flexibility[j][next_op[j]], job_ready[j]))
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Choose candidate machine with bottleneck-aware score
+        def candidate_score(pair):
+            m, p = pair
+            comp = max(machine_ready[m], job_ready[job_idx]) + p
+            # Add penalty for heavily loaded machines
+            penalty = w * (machine_workload[m] / max_workload) * avg_pt
+            return comp + penalty
+        machine_id, processing_time = min(candidates, key=candidate_score)
+
+        start = max(machine_ready[machine_id], job_ready[job_idx])
+        schedule[job_idx][op_idx] = (machine_id, start, processing_time)
+        end = start + processing_time
+        machine_ready[machine_id] = end
+        job_ready[job_idx] = end
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

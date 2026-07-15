@@ -27,7 +27,6 @@ const CAPABILITIES = [
 
 export default function ComparisonPanel() {
   const [data, setData] = useState<ComparisonData | null>(null);
-  const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const refresh = useCallback(() => fetchComparison().then(setData).catch(() => setData(null)), []);
   useEffect(() => {
     void refresh();
@@ -40,9 +39,6 @@ export default function ComparisonPanel() {
     Object.values(data?.methods ?? {}).forEach((summary) => summary?.datasets.forEach((item) => names.add(item.dataset)));
     return [...names];
   }, [data]);
-  const activeDataset = selectedDataset && datasets.includes(selectedDataset)
-    ? selectedDataset
-    : datasets[0] ?? null;
   const chart = datasets.map((dataset) => {
     const row: Record<string, string | number> = { dataset };
     METHODS.forEach((method) => {
@@ -74,61 +70,41 @@ export default function ComparisonPanel() {
         <div className="comparison-title">
           <div>
             <h3 className="card-title">多智能体调度算子生成算法性能性评价</h3>
-            <p className="task-subtitle">选择一个数据集，比较三种方法最新一次评测的平均 gap 和单实例平均耗时。</p>
+            <p className="task-subtitle">最新一次评测在所有数据集上的结果</p>
           </div>
         </div>
 
-        <div className="dataset-checkboxes" role="radiogroup" aria-label="选择要比较的数据集">
-          {datasets.map((dataset) => (
-            <label className={`dataset-checkbox ${activeDataset === dataset ? "selected" : ""}`} key={dataset}>
-              <input
-                type="radio"
-                name="comparison-dataset"
-                checked={activeDataset === dataset}
-                onChange={() => setSelectedDataset(dataset)}
-              />
-              <span>{dataset}</span>
-            </label>
-          ))}
-        </div>
-
-        {datasets.length === 0 ? (
-          <p className="empty-note">暂无实验结果，请先在运行中心至少完成一种方法的评测。</p>
-        ) : activeDataset && (
-          <div className="table-wrap comparison-matrix">
-            <table>
-              <thead>
-                <tr>
-                  <th rowSpan={2}>方法</th>
-                  <th colSpan={2}>{activeDataset}</th>
-                </tr>
-                <tr>
-                  <th>平均 gap</th>
-                  <th>单实例平均耗时</th>
-                </tr>
-              </thead>
-              <tbody>
-                {METHODS.map((method) => (
+        <div className="table-wrap comparison-matrix">
+          <table>
+            <thead>
+              <tr>
+                <th rowSpan={2}>方法</th>
+                <th colSpan={2}>所有数据集平均值</th>
+              </tr>
+              <tr>
+                <th>性能差距比(PGR)</th>
+                <th>单实例平均耗时</th>
+              </tr>
+            </thead>
+            <tbody>
+              {METHODS.map((method) => {
+                const result = data?.methods[method];
+                return (
                   <tr key={method}>
                     <td><span className="method-color" style={{ background: COLORS[method] }} />{LABELS[method]}</td>
-                    {(() => {
-                      const result = data?.methods[method]?.datasets.find((item) => item.dataset === activeDataset);
-                      return <>
-                        <td>{result?.avg_gap == null ? "—" : `${(result.avg_gap * 100).toFixed(4)}%`}</td>
-                        <td>{result?.avg_runtime_seconds == null ? "—" : `${(result.avg_runtime_seconds * 1000).toFixed(3)} ms`}</td>
-                      </>;
-                    })()}
+                    <td>{result?.overall_avg_gap == null ? "—" : `${(result.overall_avg_gap * 100).toFixed(4)}%`}</td>
+                    <td>{result?.overall_avg_runtime_seconds == null ? "—" : `${(result.overall_avg_runtime_seconds * 1000).toFixed(3)} ms`}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="table-note">页面每 5 秒刷新一次；“—”表示该方法尚未完成对应数据集的评测。</p>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="table-note"></p>
       </div>
 
       <div className="card">
-        <div className="comparison-title"><div><h3 className="card-title">各数据集平均 gap</h3><p className="task-subtitle">数值越低越好，三种方法均使用 backend/Data 中相同实例。</p></div><a className="btn btn-ghost" href={downloadUrl("compare.csv")} download style={{ textDecoration: "none" }}>下载 compare.csv</a></div>
+        <div className="comparison-title"><div><h3 className="card-title">各数据集平均性能差距比(PGR)</h3><p className="task-subtitle">数值越低越好，三种方法均使用 backend/Data 中相同实例。</p></div><a className="btn btn-ghost" href={downloadUrl("compare.csv")} download style={{ textDecoration: "none" }}>下载 compare.csv</a></div>
         {chart.length === 0 ? <p className="empty-note">暂无可展示的评测数据。</p> : <ResponsiveContainer width="100%" height={340}>
           <BarChart data={chart} margin={{ top: 12, right: 12, left: 4, bottom: 26 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2d3a4f" />
@@ -144,7 +120,7 @@ export default function ComparisonPanel() {
       <div className="card">
         <h3 className="card-title">最新实验指标</h3>
         <div className="table-wrap">
-          <table><thead><tr><th>方法</th><th>数据集</th><th>有效实例</th><th>平均 gap</th><th>单实例平均耗时</th></tr></thead>
+          <table><thead><tr><th>方法</th><th>数据集</th><th>有效实例</th><th>平均性能差距比(PGR)</th><th>单实例平均耗时</th></tr></thead>
             <tbody>{METHODS.flatMap((method) => data?.methods[method]?.datasets.map((item) => (
               <tr key={`${method}-${item.dataset}`}><td>{LABELS[method]}</td><td>{item.dataset}</td><td>{item.valid_count}/{item.instance_count}</td><td>{item.avg_gap == null ? "—" : `${(item.avg_gap * 100).toFixed(4)}%`}</td><td>{item.avg_runtime_seconds == null ? "—" : `${(item.avg_runtime_seconds * 1000).toFixed(3)} ms`}</td></tr>
             )) ?? [])}</tbody>

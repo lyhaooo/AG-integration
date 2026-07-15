@@ -11,7 +11,7 @@ from .algorithms import EOH_CODE, algorithm_from_code
 from .datasets import DATASETS, load_dataset
 from .solver import solve
 
-ProgressCallback = Callable[[int, int, float | None, str], None]
+ProgressCallback = Callable[..., None]
 
 
 def validate_llm_settings(settings: dict) -> None:
@@ -214,6 +214,7 @@ def run_our_engine(
     best_code, best_score = "", float("inf")
     completed_steps = 0
     candidates_per_action = max(1, int(settings.get("n_per_method", 2)))
+    generator_activity_count = 0
 
     for step in range(1, iterations + 1):
         if stop_event.is_set():
@@ -222,6 +223,13 @@ def run_our_engine(
         if action == "Finish":
             break
         completed_steps = step
+
+        def report_activity(stage: str, agent: str, detail: str | None = None) -> None:
+            progress(
+                step, iterations, _finite(best_score), f"{agent} Agent 正在执行：{action}",
+                stage, agent, detail,
+            )
+
         try:
             if action.startswith("Gen("):
                 gen_type = action.split("(", 1)[1].split(")", 1)[0]
@@ -229,9 +237,13 @@ def run_our_engine(
                 for _ in range(candidates_per_action):
                     if stop_event.is_set():
                         break
+                    generator_activity_count += 1
+                    generator_detail = "generation" if generator_activity_count % 2 == 1 else "combination"
+                    report_activity("generator", "Generator", generator_detail)
                     code, prompt_text = generator.generate_code(gen_type, controller.last_question_advice)
                     candidate = _evaluate_our_candidate(
-                        agent_module, action, code, prompt_text, checker, evaluator, describer
+                        agent_module, action, code, prompt_text, checker, evaluator, describer,
+                        report_activity,
                     )
                     candidates.append(candidate)
                     sample_manager.add_sample(
@@ -243,9 +255,14 @@ def run_our_engine(
                     break
                 info = min(candidates, key=lambda item: (not item.is_success, item.score))
             elif action == "Revise":
+                report_activity("optimization", "Reviser")
                 code, prompt_text = reviser.revise_code(info)
-                info = _evaluate_our_candidate(agent_module, action, code, prompt_text, checker, evaluator, describer)
+                info = _evaluate_our_candidate(
+                    agent_module, action, code, prompt_text, checker, evaluator, describer,
+                    report_activity,
+                )
             else:
+                report_activity("optimization", "Questioner")
                 advice, prompt_text = questioner.question_code(info, sample_manager.summarize_top_samples(3))
                 info = agent_module.EvolutionInfo(action=action, prompt=prompt_text, question=advice)
         except Exception as exc:
@@ -275,13 +292,17 @@ def run_our_engine(
     }
 
 
-def _evaluate_our_candidate(agent_module, action, code, prompt_text, checker, evaluator, describer):
+def _evaluate_our_candidate(
+    agent_module, action, code, prompt_text, checker, evaluator, describer, report_activity
+):
+    report_activity("debugging", "Checker")
     check_report = checker.check_code(code)
     if not check_report.ok:
         return agent_module.EvolutionInfo(
             action=action, code=code, prompt=prompt_text, check_report=check_report,
             error_type=check_report.error_type, error=check_report.message,
         )
+    report_activity("debugging", "Evaluator")
     evaluation_report = evaluator.evaluate_code(code)
     if not evaluation_report.ok:
         return agent_module.EvolutionInfo(
@@ -289,6 +310,7 @@ def _evaluate_our_candidate(agent_module, action, code, prompt_text, checker, ev
             evaluation_report=evaluation_report, error_type=evaluation_report.error_type or "evaluation_failed",
             error=evaluation_report.message,
         )
+    report_activity("optimization", "Describer")
     description = describer.describe_code(
         code, prompt_text, evaluation_report.score, float("inf"), action, evaluation_report
     )

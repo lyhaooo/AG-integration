@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { ProgressBar, StatusHeader } from "./TaskCommon";
 import MethodFitnessChart from "./MethodFitnessChart";
+import AgentActivity from "./AgentActivity";
 
 const METHODS: { id: MethodName; title: string }[] = [
   { id: "eoh", title: "EoH" },
@@ -92,6 +93,14 @@ export default function RunCenter() {
               <p className={`generated-state ${status?.generated_ready ? "ready" : ""}`}>
                 {status?.generated_ready ? "✓ 已生成 current_generated.py，可运行完整测试" : "尚无生成算子，请先运行迭代实验"}
               </p>
+              {id === "our" && running && status?.action === "evolution" && (
+                <AgentActivity
+                  stage={status.activity_stage}
+                  detail={status.activity_detail}
+                  agent={status.active_agent}
+                  events={status.activity_events ?? []}
+                />
+              )}
               {status?.action === "evolution" && status.best_fitness != null && (
                 <p className="metric-line">当前最优 Fitness：<strong>{status.best_fitness.toFixed(6)}</strong></p>
               )}
@@ -108,7 +117,7 @@ export default function RunCenter() {
               {status?.error && <p className="error-line">{status.error}</p>}
               {status?.summary && (
                 <div className="summary-grid compact-summary">
-                  <div className="summary-chip"><span className="chip-name">总体平均 gap</span><span className="chip-meta">{((status.summary.overall_avg_gap ?? 0) * 100).toFixed(3)}%</span></div>
+                  <div className="summary-chip"><span className="chip-name">总体平均性能差距比(PGR)</span><span className="chip-meta">{((status.summary.overall_avg_gap ?? 0) * 100).toFixed(3)}%</span></div>
                   <div className="summary-chip"><span className="chip-name">单实例平均耗时</span><span className="chip-meta">{((status.summary.overall_avg_runtime_seconds ?? 0) * 1000).toFixed(3)} ms</span></div>
                 </div>
               )}

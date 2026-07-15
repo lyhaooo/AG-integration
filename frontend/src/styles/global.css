@@ -451,6 +451,76 @@ textarea {
   margin-bottom: 0;
 }
 
+.agent-activity {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.32);
+  border-radius: 8px;
+}
+
+.agent-activity-header,
+.agent-activity-label {
+  display: flex;
+  align-items: center;
+}
+
+.agent-activity-header {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 11px;
+}
+
+.agent-activity-label {
+  gap: 9px;
+  font-size: 14px;
+}
+
+.agent-activity-pulse {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+  animation: agentPulse 1.4s ease-out infinite;
+}
+
+.agent-name {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.agent-progress-track {
+  height: 7px;
+  overflow: hidden;
+  background: var(--bg-input);
+  border-radius: 999px;
+}
+
+.agent-progress-flow {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 35%, #a78bfa 50%, #60a5fa 65%, #2563eb 100%);
+  background-size: 220% 100%;
+  border-radius: inherit;
+  animation: agentProgressFlow 1.5s linear infinite;
+}
+
+@keyframes agentProgressFlow {
+  from { background-position: 200% 0; }
+  to { background-position: -20% 0; }
+}
+
+@keyframes agentPulse {
+  70% { box-shadow: 0 0 0 7px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-progress-flow { animation-duration: 4s; }
+  .agent-activity-pulse { animation: none; }
+}
+
 .method-chart-wrap {
   margin-top: 16px;
   padding: 14px 12px 4px;
@@ -534,40 +604,6 @@ textarea {
   line-height: 1.65;
 }
 
-.dataset-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 6px 0 16px;
-}
-
-.dataset-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 11px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.dataset-checkbox.selected {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.dataset-checkbox input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--accent);
-}
-
 .comparison-matrix th:not(:first-child),
 .comparison-matrix td:not(:first-child) {
   min-width: 145px;
@@ -577,6 +613,10 @@ textarea {
 .comparison-matrix thead tr:first-child th:not(:first-child) {
   color: var(--text);
   border-left: 1px solid var(--border);
+}
+
+.comparison-matrix thead tr:nth-child(2) th {
+  text-align: center;
 }
 
 .comparison-matrix tbody td:first-child {

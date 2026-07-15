@@ -25,6 +25,8 @@ def empty_status(method: str) -> dict:
         "total_instances": 0, "completed_instances": 0,
         "evolution_iteration": 0, "total_evolution_iterations": 0,
         "best_fitness": None, "evolution_history": [],
+        "activity_stage": None, "activity_detail": None, "active_agent": None,
+        "activity_event_sequence": 0, "activity_events": [],
         "generated_ready": False, "started_at": None, "finished_at": None, "summary": None,
     }
 
@@ -109,14 +111,25 @@ class ExperimentManager:
             self._statuses[method].update(changes)
 
     def _finish_stopped(self, method: str) -> None:
-        self._update(method, status="stopped", message="任务已停止", finished_at=self._now())
+        self._update(
+            method, status="stopped", message="任务已停止", finished_at=self._now(),
+            activity_stage=None, activity_detail=None, active_agent=None,
+        )
 
     def _run_evolution(self, method: str) -> None:
         try:
             settings = self._read_json(self.data_root.parent / "config" / "settings.json", {})
             engines = {"eoh": run_eoh_engine, "funsearch": run_funsearch_engine, "our": run_our_engine}
 
-            def report(current: int, total: int, best: float | None, message: str) -> None:
+            def report(
+                current: int,
+                total: int,
+                best: float | None,
+                message: str,
+                activity_stage: str | None = None,
+                active_agent: str | None = None,
+                activity_detail: str | None = None,
+            ) -> None:
                 point = {
                     "iteration": current,
                     "best_fitness": best,
@@ -128,11 +141,25 @@ class ExperimentManager:
                         history[-1] = point
                     else:
                         history.append(point)
+                    activity_events = list(self._statuses[method]["activity_events"])
+                    activity_event_sequence = self._statuses[method]["activity_event_sequence"]
+                    if activity_stage is not None:
+                        activity_event_sequence += 1
+                        activity_events.append({
+                            "id": activity_event_sequence,
+                            "stage": activity_stage,
+                            "detail": activity_detail,
+                            "agent": active_agent,
+                        })
+                        activity_events = activity_events[-100:]
                     self._statuses[method].update(
                         evolution_iteration=current, total_evolution_iterations=total,
                         best_fitness=best, evolution_history=history,
                         progress_percent=round(current / max(total, 1) * 100, 2),
-                        message=message,
+                        message=message, activity_stage=activity_stage, active_agent=active_agent,
+                        activity_detail=activity_detail,
+                        activity_event_sequence=activity_event_sequence,
+                        activity_events=activity_events,
                     )
 
             with tempfile.TemporaryDirectory(prefix=f"fjsp-{method}-") as temp_dir:
@@ -147,6 +174,7 @@ class ExperimentManager:
                 method, status="completed", action="evolution", message="迭代实验完成，已生成算子",
                 progress_percent=100.0, generated_ready=True, finished_at=self._now(),
                 evolution_iteration=self._statuses[method]["total_evolution_iterations"],
+                activity_stage=None, activity_detail=None, active_agent=None,
             )
         except Exception as exc:
             self._fail(method, exc)
@@ -193,7 +221,10 @@ class ExperimentManager:
             self._fail(method, exc)
 
     def _fail(self, method: str, exc: Exception) -> None:
-        self._update(method, status="error", message="运行失败", error=f"{type(exc).__name__}: {exc}", finished_at=self._now())
+        self._update(
+            method, status="error", message="运行失败", error=f"{type(exc).__name__}: {exc}",
+            finished_at=self._now(), activity_stage=None, activity_detail=None, active_agent=None,
+        )
 
     @staticmethod
     def _read_json(path: Path, default: dict) -> dict:

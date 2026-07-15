@@ -1,0 +1,53 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    remaining = sum(len(job) for job in durations)
+
+    while remaining > 0:
+        # select ready job with smallest ready time
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+        job_idx = min(ready_jobs, key=lambda j: job_ready_time[j])
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # one-step lookahead evaluation
+        best_candidate = None
+        best_metric = float('inf')
+        for machine_id, processing_time in candidates:
+            start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            current_end = start_time + processing_time
+
+            # look ahead to next operation (if exists)
+            if op_idx + 1 < len(durations[job_idx]):
+                next_candidates = durations[job_idx][op_idx + 1]
+                best_next_end = float('inf')
+                for m_next, p_next in next_candidates:
+                    next_start = max(machine_ready_time[m_next] if m_next != machine_id else current_end,
+                                     current_end)
+                    next_end = next_start + p_next
+                    if next_end < best_next_end:
+                        best_next_end = next_end
+                metric = max(current_end, best_next_end)
+            else:
+                metric = current_end
+
+            # tie‑break by processing time, then machine id
+            if (metric < best_metric or
+                (metric == best_metric and processing_time < best_candidate[1]) or
+                (metric == best_metric and processing_time == best_candidate[1] and machine_id < best_candidate[0])):
+                best_metric = metric
+                best_candidate = (machine_id, processing_time, current_end)
+
+        machine_id, processing_time, start_time = best_candidate
+        start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+        end_time = start_time + processing_time
+
+        schedule[job_idx][op_idx] = (machine_id, start_time, processing_time)
+        machine_ready_time[machine_id] = end_time
+        job_ready_time[job_idx] = end_time
+        next_op[job_idx] += 1
+        remaining -= 1
+
+    return schedule

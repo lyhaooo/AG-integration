@@ -1,0 +1,59 @@
+def fjsp_solver(n_jobs, n_machines, durations):
+    # Precompute estimated remaining work as sum of minimum processing times per operation
+    remaining_work = [0] * n_jobs
+    for j in range(n_jobs):
+        total = 0
+        for candidates in durations[j]:
+            min_proc = min(p for _, p in candidates)
+            total += min_proc
+        remaining_work[j] = total
+
+    # Initialize schedule and tracking structures
+    schedule = [[None] * len(durations[j]) for j in range(n_jobs)]
+    machine_ready_time = [0] * n_machines
+    job_ready_time = [0] * n_jobs
+    next_op = [0] * n_jobs
+    machine_load = [0] * n_machines  # total processing time assigned to each machine
+    remaining_ops = sum(len(job) for job in durations)
+
+    while remaining_ops > 0:
+        # Ready jobs: those with operations still to schedule
+        ready_jobs = [j for j in range(n_jobs) if next_op[j] < len(durations[j])]
+
+        # Job selection: largest remaining work (LWR)
+        job_idx = max(ready_jobs, key=lambda j: remaining_work[j])
+
+        op_idx = next_op[job_idx]
+        candidates = durations[job_idx][op_idx]
+
+        # Machine selection: load-aware earliest completion
+        best_machine = None
+        best_completion = float('inf')
+        best_load = float('inf')
+        for machine_id, processing_time in candidates:
+            start_time = max(machine_ready_time[machine_id], job_ready_time[job_idx])
+            completion = start_time + processing_time
+            load = machine_load[machine_id]
+            # Compare by completion, then by load (lower is better), then by machine id
+            if (completion < best_completion or
+                (completion == best_completion and load < best_load) or
+                (completion == best_completion and load == best_load and machine_id < best_machine)):
+                best_machine = machine_id
+                best_completion = completion
+                best_load = load
+                best_proc = processing_time
+                best_start = start_time
+
+        # Schedule the operation
+        schedule[job_idx][op_idx] = (best_machine, best_start, best_proc)
+        end_time = best_start + best_proc
+
+        # Update times and loads
+        machine_ready_time[best_machine] = end_time
+        job_ready_time[job_idx] = end_time
+        machine_load[best_machine] += best_proc
+        remaining_work[job_idx] -= best_proc  # subtract actual processing time
+        next_op[job_idx] += 1
+        remaining_ops -= 1
+
+    return schedule

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -62,6 +63,30 @@ class PlatformTests(unittest.TestCase):
             self.assertEqual([point["iteration"] for point in status["evolution_history"]], [1, 2])
             self.assertEqual(status["evolution_history"][0]["best_fitness"], 0.38)
             self.assertEqual(status["best_fitness"], 0.31)
+
+    def test_evolution_status_exposes_active_agent_stage(self):
+        reported = threading.Event()
+        release = threading.Event()
+
+        def fake_engine(settings, data_root, work_root, progress, stop_event, mock=False):
+            progress(1, 1, 0.25, "Generator Agent 正在执行", "generator", "Generator", "generation")
+            reported.set()
+            release.wait(timeout=2)
+            return "def fjsp_solver(instance):\n    return []\n", {"engine": "fake"}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manager = ExperimentManager(root / "Data", root / "results")
+            with patch("fjsp_platform.runner.run_our_engine", fake_engine):
+                manager.start_evolution("our")
+                self.assertTrue(reported.wait(timeout=2))
+                status = manager.statuses()["our"]
+                self.assertEqual(status["activity_stage"], "generator")
+                self.assertEqual(status["active_agent"], "Generator")
+                self.assertEqual(status["activity_detail"], "generation")
+                self.assertEqual(status["activity_events"][0]["stage"], "generator")
+                release.set()
+                manager._threads["our"].join(timeout=2)
 
 
 if __name__ == "__main__":

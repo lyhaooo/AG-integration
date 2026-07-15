@@ -132,10 +132,22 @@ export interface MethodStatus {
   total_evolution_iterations: number;
   best_fitness: number | null;
   evolution_history: MethodHistoryPoint[];
+  activity_stage: "generator" | "debugging" | "optimization" | null;
+  activity_detail: "generation" | "combination" | null;
+  active_agent: string | null;
+  activity_event_sequence: number;
+  activity_events: ActivityEvent[];
   generated_ready: boolean;
   started_at: string | null;
   finished_at: string | null;
   summary: RunSummary | null;
+}
+
+export interface ActivityEvent {
+  id: number;
+  stage: NonNullable<MethodStatus["activity_stage"]>;
+  detail: MethodStatus["activity_detail"];
+  agent: string | null;
 }
 
 export interface MethodHistoryPoint {
