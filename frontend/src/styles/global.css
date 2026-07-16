@@ -566,44 +566,6 @@ textarea {
   gap: 16px;
 }
 
-.capability-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.capability-item {
-  display: flex;
-  gap: 14px;
-  min-height: 142px;
-  padding: 18px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.capability-index {
-  flex: 0 0 auto;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 22px;
-}
-
-.capability-item h4 {
-  margin: 0 0 8px;
-  font-size: 14px;
-}
-
-.capability-item p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.65;
-}
-
 .comparison-matrix th:not(:first-child),
 .comparison-matrix td:not(:first-child) {
   min-width: 145px;
@@ -652,5 +614,4 @@ textarea {
   header nav { flex-wrap: wrap; justify-content: flex-end; }
   .comparison-title { flex-direction: column; }
   .compact-summary { grid-template-columns: 1fr; }
-  .capability-grid { grid-template-columns: 1fr; }
 }

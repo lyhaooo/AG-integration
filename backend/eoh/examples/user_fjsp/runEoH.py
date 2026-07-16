@@ -14,8 +14,8 @@ problem_local = FJSP()
 # Set parameters #
 paras.set_paras(method = "eoh",    # ['ael','eoh']          # AEL是什么方法？
                 problem = problem_local, # Set local problem, else use default problems
-                llm_api_endpoint = "one.ocoolai.com", # set your LLM endpoint
-                llm_api_key = os.environ.get("LLM_API_KEY", ""),
+                llm_api_endpoint = "api.ocoolai.com", # set your LLM endpoint
+                llm_api_key = "sk-6cSW7sQ7gExZjhZkC4C65727848641B4961552099d70B448", # set your LLM api key
                 llm_model = "gpt-3.5-turbo",
                 # llm_model = "qwen3-14b",
                 # llm_model = "gpt-5.2",

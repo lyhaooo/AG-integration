@@ -6,24 +6,6 @@ import type { ComparisonData, MethodName } from "../types";
 const LABELS: Record<MethodName, string> = { eoh: "EoH", funsearch: "FunSearch", our: "Our" };
 const COLORS: Record<MethodName, string> = { eoh: "#3b82f6", funsearch: "#a855f7", our: "#22c55e" };
 const METHODS: MethodName[] = ["eoh", "funsearch", "our"];
-const CAPABILITIES = [
-  {
-    title: "调度算子自动生成",
-    description: "主要由 Generator Agent 负责，以现有模板为基础，引导 LLM 自动生成高性能算子。",
-  },
-  {
-    title: "调度算子自动调试",
-    description: "主要由 Checker 和 Evaluator Agent 负责，对由 LLM 生成的算子进行检查、评估并修正。",
-  },
-  {
-    title: "调度算子自动优化",
-    description: "由 Reviser Agent 负责对无法正确运行或调度结果不合理的代码进行修正，同时迭代生成更高质量的代码。",
-  },
-  {
-    title: "调度算子动态组合",
-    description: "Generator Agent 会调用不同工具，对算子的不同部分进行扰动和组合；例如 gen_M 仅修改机器选择算子，gen_O 仅修改工序选择算子。",
-  },
-];
 
 export default function ComparisonPanel() {
   const [data, setData] = useState<ComparisonData | null>(null);
@@ -50,22 +32,6 @@ export default function ComparisonPanel() {
 
   return (
     <div className="run-center">
-      <div className="card">
-        <h3 className="card-title">多智能体调度算子生成算法功能性评价</h3>
-        <p className="task-subtitle">通过不同 Agent 分工协作，覆盖算子自动生成、自动调试、自动优化与动态组合的完整流程。</p>
-        <div className="capability-grid">
-          {CAPABILITIES.map((capability, index) => (
-            <div className="capability-item" key={capability.title}>
-              <span className="capability-index">{String(index + 1).padStart(2, "0")}</span>
-              <div>
-                <h4>{capability.title}</h4>
-                <p>{capability.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="card">
         <div className="comparison-title">
           <div>
